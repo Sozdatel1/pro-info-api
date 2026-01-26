@@ -5,6 +5,9 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors()); // Чтобы твой сайт на GitHub мог достучаться до сервера
+app.get('/test', (req, res) => {
+    res.json({ message: "Связь с Render установлена!", time: new Date() });
+});
 
 const server = http.createServer(app);
 const io = new Server(server, {
