@@ -5,26 +5,26 @@ const cors = require('cors');
 
 const app = express();
 
-// 1. ИСПРАВЛЯЕМ CORS: разрешаем твоему сайту на Vercel брать данные
+// 1. Настройка CORS для Express
 app.use(cors({
-    origin: "*", // Твой домен на Vercel
+    origin: "*", 
     methods: ["GET", "POST"]
 }));
 
-// 2. ИСПРАВЛЯЕМ 404: добавляем ответ для главной страницы
+// 2. Ответ для главной страницы
 app.get('/', (req, res) => {
     res.json({ message: "Бэкенд Про-Инфо работает!" });
 });
 
 const server = http.createServer(app);
 
-// 3. Настраиваем сокеты с учетом CORS
+// 3. Настраиваем сокеты (добавлены пропущенные запятые)
 const io = new Server(server, {
     cors: {
         origin: "*",
-        methods: ["GET", "POST"]
+        methods: ["GET", "POST"], // тут была пропущена запятая
         credentials: true
-    }
+    }, // тут была пропущена запятая
     allowEIO3: true 
 });
 
