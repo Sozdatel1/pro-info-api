@@ -1,0 +1,12 @@
+{
+  "name": "pro-info-counter",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "latest",
+    "socket.io": "latest",
+    "cors": "latest"
+  }
+}
