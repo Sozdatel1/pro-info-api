@@ -5,25 +5,25 @@ const cors = require('cors');
 
 const app = express();
 
-// ИСПРАВЛЕНИЕ CORS: Разрешаем твоему сайту на Vercel обращаться к серверу
+// 1. ИСПРАВЛЯЕМ CORS: разрешаем твоему сайту на Vercel брать данные
 app.use(cors({
     origin: "https://pro-info.vercel.app", // Твой домен на Vercel
     methods: ["GET", "POST"]
 }));
 
+// 2. ИСПРАВЛЯЕМ 404: добавляем ответ для главной страницы
+app.get('/', (req, res) => {
+    res.json({ message: "Бэкенд Про-Инфо работает!" });
+});
+
 const server = http.createServer(app);
 
-// Настройка Socket.io с поддержкой CORS
+// 3. Настраиваем сокеты с учетом CORS
 const io = new Server(server, {
     cors: {
         origin: "https://pro-info.vercel.app",
         methods: ["GET", "POST"]
     }
-});
-
-// Добавляем ответ на обычный запрос (чтобы не было 404)
-app.get('/', (req, res) => {
-    res.json({ message: "Сервер Про-Инфо активен!", online: onlineCount });
 });
 
 let onlineCount = 0;
@@ -39,4 +39,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Бэкенд запущен!'));
+server.listen(PORT, () => {
+    console.log(`Сервер запущен на порту ${PORT}`);
+});
