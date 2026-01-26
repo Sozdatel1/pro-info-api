@@ -7,7 +7,7 @@ const app = express();
 
 // 1. ИСПРАВЛЯЕМ CORS: разрешаем твоему сайту на Vercel брать данные
 app.use(cors({
-    origin: "https://pro-info.vercel.app", // Твой домен на Vercel
+    origin: "*", // Твой домен на Vercel
     methods: ["GET", "POST"]
 }));
 
@@ -21,7 +21,7 @@ const server = http.createServer(app);
 // 3. Настраиваем сокеты с учетом CORS
 const io = new Server(server, {
     cors: {
-        origin: "https://pro-info.vercel.app",
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
