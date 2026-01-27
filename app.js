@@ -40,6 +40,43 @@ io.on('connection', (socket) => {
     });
 });
 
+const axios = require('axios');
+
+// Добавьте эти маршруты к вашим существующим (где сокеты)
+
+// 1. Прокси скрипта
+app.get('/lib/metrika.js', async (req, res) => {
+    try {
+        const response = await axios.get('https://mc.yandex.ru');
+        res.setHeader('Content-Type', 'application/javascript');
+        res.setHeader('Access-Control-Allow-Origin', '*'); // Разрешаем Vercel забрать файл
+        res.send(response.data);
+    } catch (e) {
+        res.status(500).send('Error');
+    }
+});
+
+// 2. Прокси данных
+app.all('/collect/*', async (req, res) => {
+    try {
+        const targetUrl = `https://mc.yandex.ru${req.url.replace('/collect', '')}`;
+        const response = await axios({
+            method: req.method,
+            url: targetUrl,
+            data: req.body,
+            headers: {
+                'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip,
+                'User-Agent': req.headers['user-agent']
+            }
+        });
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.status(response.status).send(response.data);
+    } catch (e) {
+        res.status(200).send(); // Не ломаем фронтенд при ошибке
+    }
+});
+
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Сервер запущен на порту ${PORT}`);
