@@ -41,39 +41,45 @@ io.on('connection', (socket) => {
 });
 let cachedMetrikaCode = ""; 
 
-// 1. Функция скачивает ВЕСЬ код Яндекса и ПЕРЕОДЕВАЕТ его
+// 1. Улучшенная функция скачивания
 async function updateMetrikaCache() {
     try {
-        // УКАЗАН ПОЛНЫЙ ПУТЬ к файлу tag.js
-        const response = await axios.get('https://yastat.net');
+        // Ссылка ОБЯЗАТЕЛЬНО должна вести на файл .js
+        const response = await axios.get('https://yastat.net', {
+            timeout: 10000,
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
         
-        // Подменяем все ссылки на Яндекс внутри самого кода Метрики на твой прокси
-        cachedMetrikaCode = response.data.replace(
-            /https:\/\/mc\.yandex\.ru/g, 
-            'https://pro-info-api.onrender.com'
-        );
-        console.log("✅ Метрика успешно замаскирована в памяти сервера");
+        // Подменяем ссылки на прокси
+        cachedMetrikaCode = response.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
+        console.log("✅ Метрика в памяти. Размер:", cachedMetrikaCode.length, "байт");
+        return true;
     } catch (e) {
-        console.error("❌ Ошибка кэширования:", e.message);
+        console.error("❌ Ошибка кэша:", e.message);
+        return false;
     }
 }
-updateMetrikaCache();
-setInterval(updateMetrikaCache, 3600000);
 
-// 2. Раздаем этот готовый код как обычный файл (без всяких atob и шифров)
+// 2. Роут, который ГАРАНТИРОВАННО отдает код
 app.get('/lib/metrika.js', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
     res.setHeader('Access-Control-Allow-Origin', '*');
     
-    if (cachedMetrikaCode) {
-        // Отдаем реальный код Яндекса, который мы "причесали"
+    if (cachedMetrikaCode && cachedMetrikaCode.length > 1000) {
         res.send(cachedMetrikaCode);
     } else {
-        // Если вдруг кэш пуст, просто грузим оригинал
+        // Если вдруг пусто — экстренно редиректим на оригинал, чтобы не было 0 B
         res.redirect('https://yastat.net');
     }
 });
 
+// 3. ЗАПУСК СЕРВЕРА ТОЛЬКО ПОСЛЕ ЗАГРУЗКИ КЭША
+updateMetrikaCache().then(() => {
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+        console.log(`🚀 Сервер готов на порту ${PORT}`);
+    });
+});
 
 
 
