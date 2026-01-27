@@ -84,9 +84,11 @@ app.get('/lib/metrika.js', async (req, res) => {
 // Используем Regex. Для Node.js 22 это единственный способ захватить всё без ошибок.
 app.all(/^\/collect\/(.*)/, async (req, res) => {
     try {
-        // В регулярных выражениях захваченная часть лежит в req.params[0]
+        // В регулярках захваченная группа (.*) попадает в массив req.params[0]
         const path = req.params[0]; 
         const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+        
+        // Теперь URL будет точно правильным: https://mc.yandex.ru...
         const targetUrl = `https://mc.yandex.ru{path}${query}`;
 
         const response = await axios({
@@ -103,10 +105,15 @@ app.all(/^\/collect\/(.*)/, async (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
+        // Выводим в лог реальный URL, чтобы убедиться, что он не "битый"
+        const debugPath = req.params[0];
+        console.error(`404 на стороне Яндекса. Путь был: /${debugPath}`);
+        
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(200).send(''); 
     }
 });
+
 
 
 
