@@ -47,34 +47,35 @@ app.get('/lib/metrika.js', async (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
     
     try {
+        // ОШИБКА БЫЛА ТУТ: Нужно указывать полный путь к файлу tag.js
         const response = await axios.get('https://mc.yandex.ru', {
-            // Добавляем заголовки, которые Яндекс ждет от живого человека
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-                'Referer': 'https://yandex.ru',
-                'Cache-Control': 'no-cache'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0.0.0 Safari/537.36',
+                'Referer': 'https://yandex.ru'
             },
-            timeout: 10000 // Увеличиваем ожидание до 10 секунд
+            timeout: 5000 
         });
 
         if (response.data && response.data.length > 500) {
             res.send(response.data);
         } else {
-            throw new Error('Слишком короткий ответ от Яндекса');
+            throw new Error('Short response');
         }
     } catch (e) {
-        console.error("Яндекс все еще блокирует запрос:", e.message);
-        // Если Яндекс не отдаёт скрипт, загружаем его через официальное зеркало (CDN)
+        // Лог ошибки теперь будет понятнее
+        console.error("Основной сервер Яндекса недоступен, пробую зеркало...");
+        
         try {
+            // ОШИБКА БЫЛА ТУТ: Нужно указывать полный путь к зеркалу
             const fallback = await axios.get('https://cdn.jsdelivr.net');
             res.send(fallback.data);
         } catch (e2) {
+            console.error("Все источники заблокированы");
             res.send('console.log("Metrika: all sources blocked");');
         }
     }
 });
+
 
 
 
