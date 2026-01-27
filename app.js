@@ -82,16 +82,21 @@ app.get('/lib/metrika.js', async (req, res) => {
 // Используем строку с подстановочным знаком для надежности
 // Мы даем имя параметру :wildcard и разрешаем в нем любые символы (*)
 // Используем Regex. Для Node.js 22 это единственный способ захватить всё без ошибок.
-app.all(/^\/collect\/(.*)/, async (req, res) => {
+// Используем app.use — он не парсит "звездочки" как регулярки, 
+// поэтому PathError (ошибка 2026 года) не возникнет.
+app.use('/collect', async (req, res) => {
+    // Разрешаем Vercel обращаться к Render
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Если это предварительный запрос (OPTIONS), сразу отвечаем 200
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
     try {
-        // В регулярках Express 2026 захваченная группа (.*) лежит в req.params[0]
-        const targetPath = req.params[0]; 
-        const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-        
-        // Склеиваем чистый путь: https://mc.yandex.ru...
-        const targetUrl = `https://mc.yandex.ru{targetPath}${queryString}`;
+        // Достаем хвост пути (напр. /watch/106462068...)
+        const targetPath = req.originalUrl.replace('/collect', '');
+        const targetUrl = `https://mc.yandex.ru${targetPath}`;
 
         const response = await axios({
             method: req.method,
@@ -104,15 +109,19 @@ app.all(/^\/collect\/(.*)/, async (req, res) => {
             responseType: 'arraybuffer'
         });
 
+        // --- ТОТ САМЫЙ ЛОГ УСПЕХА ---
+        console.log(`✅ Данные Метрики успешно отправлены: ${targetPath.split('?')[0]}`);
+        
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Если все еще 404, выведем в логи точный URL, который мы пытались собрать
-        const debugPath = req.params[0] || 'null';
-        console.error(`404 Ошибка. Яндекс не нашел путь: /${debugPath}`);
-        
+        // Логируем ошибку, только если это не обычный 404 (чтобы не спамить)
+        if (e.response && e.response.status !== 404) {
+            console.error(`❌ Ошибка Метрики: ${e.message}`);
+        }
         res.status(200).send(''); 
     }
 });
+
 
 
 
