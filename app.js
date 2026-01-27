@@ -57,9 +57,14 @@ app.get('/lib/metrika.js', async (req, res) => {
 });
 
 // 2. Прокси данных
-app.all('/collect/*', async (req, res) => {
+// Было: app.all('/collect/*', ...
+// Стало (исправленный вариант для новых версий Express):
+app.all('/collect/(.*)', async (req, res) => {
     try {
-        const targetUrl = `https://mc.yandex.ru${req.url.replace('/collect', '')}`;
+        // Извлекаем путь, который идет после /collect/
+        const pathAfterCollect = req.params[0]; 
+        const targetUrl = `https://mc.yandex.ru{pathAfterCollect}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`;
+        
         const response = await axios({
             method: req.method,
             url: targetUrl,
@@ -67,14 +72,18 @@ app.all('/collect/*', async (req, res) => {
             headers: {
                 'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip,
                 'User-Agent': req.headers['user-agent']
-            }
+            },
+            responseType: 'arraybuffer' // Важно для корректной пересылки данных
         });
+
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
-        res.status(200).send(); // Не ломаем фронтенд при ошибке
+        // Если ошибка — просто отдаем 200, чтобы не спамить в консоль браузера
+        res.status(200).send();
     }
 });
+
 
 
 const PORT = process.env.PORT || 3000;
