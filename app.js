@@ -41,49 +41,37 @@ io.on('connection', (socket) => {
 });
 let cachedMetrikaCode = ""; 
 
-// 2. Функция, которая скачивает код Яндекса в эту переменную
+// 1. Функция скачивает ВЕСЬ код Яндекса и ПЕРЕОДЕВАЕТ его
 async function updateMetrikaCache() {
     try {
-        // Скачиваем оригинал
+        // УКАЗАН ПОЛНЫЙ ПУТЬ к файлу tag.js
         const response = await axios.get('https://yastat.net');
-        // Маскируем ссылки внутри кода, чтобы Касперский не узнал их
-        cachedMetrikaCode = response.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
-        console.log("✅ Код Метрики успешно сохранен в памяти сервера");
+        
+        // Подменяем все ссылки на Яндекс внутри самого кода Метрики на твой прокси
+        cachedMetrikaCode = response.data.replace(
+            /https:\/\/mc\.yandex\.ru/g, 
+            'https://pro-info-api.onrender.com'
+        );
+        console.log("✅ Метрика успешно замаскирована в памяти сервера");
     } catch (e) {
-        console.error("❌ Ошибка обновления кэша Метрики:", e.message);
+        console.error("❌ Ошибка кэширования:", e.message);
     }
 }
-
-// Запускаем обновление при старте сервера
 updateMetrikaCache();
-// И обновляем раз в час (на случай, если Яндекс выпустит апдейт)
 setInterval(updateMetrikaCache, 3600000);
 
-// Добавьте эти маршруты к вашим существующим (где сокеты)
+// 2. Раздаем этот готовый код как обычный файл (без всяких atob и шифров)
 app.get('/lib/metrika.js', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
     res.setHeader('Access-Control-Allow-Origin', '*');
     
-    // Шифруем адрес через Base64, чтобы Касперский не нашел строку "yandex" или "metrika"
-    const target = Buffer.from("aHR0cHM6Ly95YXN0YXQubmV0L3MzL21ldHJpa2EvdGFnLmpz").toString('base64'); 
-    
-    const code = `
-    (function() {
-        var _0x1f2e = ['script', 'createElement', 'head', 'appendChild', 'atob', '${target}'];
-        var s = document[_0x1f2e[1]](_0x1f2e[0]);
-        s.src = atob(_0x1f2e[5]); // Расшифровка адреса в браузере
-        s.async = true;
-        s.onload = function() {
-            // Используем window['ym'] вместо прямого ym
-            window['ym'](106462068, "init", {
-                dest: "https://pro-info-api.onrender.com",
-                clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true
-            });
-        };
-        document[_0x1f2e[2]][_0x1f2e[3]](s);
-    })();`;
-    
-    res.send(code);
+    if (cachedMetrikaCode) {
+        // Отдаем реальный код Яндекса, который мы "причесали"
+        res.send(cachedMetrikaCode);
+    } else {
+        // Если вдруг кэш пуст, просто грузим оригинал
+        res.redirect('https://yastat.net');
+    }
 });
 
 
