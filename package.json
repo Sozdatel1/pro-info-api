@@ -8,5 +8,6 @@
     "express": "latest",
     "socket.io": "latest",
     "cors": "latest"
+    "axios": "^1.6.0" 
   }
 }
