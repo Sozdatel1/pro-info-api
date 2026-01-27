@@ -57,14 +57,14 @@ app.get('/lib/metrika.js', async (req, res) => {
 });
 
 // 2. Прокси данных
-// Было: app.all('/collect/*', ...
-// Стало (исправленный вариант для новых версий Express):
-// Исправленный синтаксис для Express 2026 года
-app.all('/collect/:path(*)', async (req, res) => {
+// Используем регулярное выражение вместо строки. 
+// Это заставит Express принять любой путь после /collect/
+app.all(/^\/collect\/(.*)/, async (req, res) => {
     try {
-        // Формируем целевой URL Яндекса
-        // req.params.path содержит все, что идет после /collect/
-        const targetUrl = `https://mc.yandex.ru{req.params.path}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`;
+        // req.params[0] содержит всё, что попало в скобки (.*)
+        const pathAfter = req.params[0];
+        const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+        const targetUrl = `https://mc.yandex.ru{pathAfter}${queryString}`;
         
         const response = await axios({
             method: req.method,
@@ -83,6 +83,7 @@ app.all('/collect/:path(*)', async (req, res) => {
         res.status(200).send();
     }
 });
+
 
 
 
