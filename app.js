@@ -80,12 +80,16 @@ app.get('/lib/metrika.js', async (req, res) => {
 
 // МАРШРУТ 2: Принимаем данные (используем Regex для стабильности)
 // Используем строку с подстановочным знаком для надежности
-app.all('/collect/*', async (req, res) => {
+// Мы даем имя параметру :wildcard и разрешаем в нем любые символы (*)
+app.all('/collect/:wildcard(*)', async (req, res) => {
     try {
-        // 1. Извлекаем чистый путь для Яндекса
-        // Отрезаем '/collect/' (9 символов) от начала пути
-        const targetPath = req.originalUrl.split('/collect/')[1];
-        const targetUrl = `https://mc.yandex.ru{targetPath}`;
+        // Извлекаем то, что попало в "звездочку"
+        const path = req.params.wildcard;
+        // Собираем Query-строку (все что после ?)
+        const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+        
+        // Формируем чистый URL для Яндекса
+        const targetUrl = `https://mc.yandex.ru{path}${query}`;
 
         const response = await axios({
             method: req.method,
@@ -101,15 +105,12 @@ app.all('/collect/*', async (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Если ошибка 404 всё еще есть, выводим реальный URL, который получился
-        const debugPath = req.originalUrl.split('/collect/')[1];
-        console.error(`Ошибка: ${e.message} | Пытался открыть: https://mc.yandex.ru{debugPath}`);
-        
+        // Вместо падения сервера просто логируем ошибку
+        console.error(`Ошибка прокси: ${e.message}`);
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(200).send(''); 
     }
 });
-
 
 
 
