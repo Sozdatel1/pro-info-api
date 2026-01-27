@@ -42,20 +42,26 @@ io.on('connection', (socket) => {
 
 
 // Добавьте эти маршруты к вашим существующим (где сокеты)
-
 app.get('/lib/metrika.js', async (req, res) => {
     try {
-        const response = await axios.get('https://mc.yandex.ru', { 
-            responseType: 'text' 
+        const response = await axios.get('https://mc.yandex.ru', {
+            timeout: 5000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
         });
+        
         res.setHeader('Content-Type', 'application/javascript');
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.send(response.data);
     } catch (e) {
-        console.error('Ошибка загрузки скрипта:', e.message);
-        res.status(500).send('console.log("Metrika proxy error");');
+        console.error('Ошибка проксирования:', e.message);
+        // Если Яндекс недоступен, отдаем пустой корректный JS, чтобы не было ошибки 500
+        res.setHeader('Content-Type', 'application/javascript');
+        res.send('console.log("Metrika proxy: temporarily unavailable");');
     }
 });
+
 
 // МАРШРУТ 2: Принимаем данные (используем Regex для стабильности)
 app.all(/^\/collect\/(.*)/, async (req, res) => {
