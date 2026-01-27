@@ -48,20 +48,31 @@ app.get('/lib/metrika.js', async (req, res) => {
     
     try {
         const response = await axios.get('https://mc.yandex.ru', {
+            // Добавляем заголовки, которые Яндекс ждет от живого человека
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
-            }
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Referer': 'https://yandex.ru',
+                'Cache-Control': 'no-cache'
+            },
+            timeout: 10000 // Увеличиваем ожидание до 10 секунд
         });
-        // Проверяем, что данные пришли
-        if (response.data) {
+
+        if (response.data && response.data.length > 500) {
             res.send(response.data);
         } else {
-            throw new Error('Empty response');
+            throw new Error('Слишком короткий ответ от Яндекса');
         }
     } catch (e) {
-        console.error("Ошибка при связи с Яндексом:", e.message);
-        // Если Яндекс не отдал код, отдаем "заглушку", чтобы сайт не выдавал ошибку 500
-        res.send('console.log("Metrika: fallback mode active");');
+        console.error("Яндекс все еще блокирует запрос:", e.message);
+        // Если Яндекс не отдаёт скрипт, загружаем его через официальное зеркало (CDN)
+        try {
+            const fallback = await axios.get('https://cdn.jsdelivr.net');
+            res.send(fallback.data);
+        } catch (e2) {
+            res.send('console.log("Metrika: all sources blocked");');
+        }
     }
 });
 
