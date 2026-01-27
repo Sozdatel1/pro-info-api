@@ -81,19 +81,16 @@ app.get('/lib/metrika.js', async (req, res) => {
 // МАРШРУТ 2: Принимаем данные (используем Regex для стабильности)
 app.all(/^\/collect\/(.*)/, async (req, res) => {
     try {
-        // В новых версиях Express путь лежит в req.params[0]
-        const path = req.params[0]; 
-        const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-        
-        // Формируем чистый URL для Яндекса
-        const targetUrl = `https://mc.yandex.ru{path}${queryString}`;
+        // Извлекаем чистый путь из самого URL, отрезая приставку /collect
+        const cleanPath = req.url.replace('/collect/', '');
+        const targetUrl = `https://mc.yandex.ru{cleanPath}`;
 
         const response = await axios({
             method: req.method,
             url: targetUrl,
             data: req.body,
             headers: {
-                'User-Agent': req.headers['user-agent'],
+                'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
                 'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip
             },
             responseType: 'arraybuffer'
@@ -102,12 +99,13 @@ app.all(/^\/collect\/(.*)/, async (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Ошибка 404 в логах Render шла отсюда
-        console.error("Ошибка прокси-запроса к Яндексу:", e.message);
+        // Если Яндекс ответил 404, выведем в логи точный URL, который мы запрашивали
+        console.error(`Ошибка прокси: ${e.message} | URL: https://mc.yandex.ru${req.url.replace('/collect', '')}`);
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(200).send(''); 
     }
 });
+
 
 
 
