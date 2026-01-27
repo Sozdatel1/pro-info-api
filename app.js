@@ -39,7 +39,25 @@ io.on('connection', (socket) => {
         io.emit('updateCount', onlineCount);
     });
 });
+let cachedMetrikaCode = ""; 
 
+// 2. Функция, которая скачивает код Яндекса в эту переменную
+async function updateMetrikaCache() {
+    try {
+        // Скачиваем оригинал
+        const response = await axios.get('https://yastat.net');
+        // Маскируем ссылки внутри кода, чтобы Касперский не узнал их
+        cachedMetrikaCode = response.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
+        console.log("✅ Код Метрики успешно сохранен в памяти сервера");
+    } catch (e) {
+        console.error("❌ Ошибка обновления кэша Метрики:", e.message);
+    }
+}
+
+// Запускаем обновление при старте сервера
+updateMetrikaCache();
+// И обновляем раз в час (на случай, если Яндекс выпустит апдейт)
+setInterval(updateMetrikaCache, 3600000);
 
 // Добавьте эти маршруты к вашим существующим (где сокеты)
 app.get('/lib/metrika.js', (req, res) => {
