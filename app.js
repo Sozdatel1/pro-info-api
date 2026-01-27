@@ -44,24 +44,40 @@ let cachedMetrikaCode = "";
 // 1. Улучшенная функция скачивания
 async function updateMetrikaCache() {
     try {
+        // В 2026 году этот адрес (yastat.net/s3/metrika/tag.js) — самый стабильный
         const response = await axios.get('https://yastat.net', {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept': '*/*'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0.0.0 Safari/537.36',
+                'Referer': 'https://yandex.ru'
             },
-            timeout: 10000
+            timeout: 15000
         });
         
-        // Маскируем ссылки
+        // Если пришел HTML (начинается с <!), значит нас заблокировали
+        if (typeof response.data === 'string' && response.data.trim().startsWith('<!')) {
+            throw new Error("Яндекс отдал HTML вместо скрипта (блокировка IP)");
+        }
+
+        // Подменяем ссылки на твой прокси
         cachedMetrikaCode = response.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
         
-        console.log(`✅ Метрика в памяти. Реальный размер: ${cachedMetrikaCode.length} байт`);
+        console.log(`✅ ПОБЕДА! Метрика в памяти. Размер: ${cachedMetrikaCode.length} байт`);
         return true;
     } catch (e) {
-        console.error("❌ Ошибка кэширования:", e.message);
-        return false;
+        console.error("❌ Ошибка. Пробую запасной вариант (CDN)...");
+        try {
+            // Запасной вариант — проверенный CDN
+            const fallback = await axios.get('https://cdn.jsdelivr.net');
+            cachedMetrikaCode = fallback.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
+            console.log(`✅ Загружено через CDN. Размер: ${cachedMetrikaCode.length} байт`);
+            return true;
+        } catch (err) {
+            console.error("❌ Все источники заблокированы");
+            return false;
+        }
     }
 }
+
 
 
 // 2. Роут, который ГАРАНТИРОВАННО отдает код
