@@ -84,17 +84,16 @@ app.get('/lib/metrika.js', async (req, res) => {
 // Используем Regex. Для Node.js 22 это единственный способ захватить всё без ошибок.
 app.all(/^\/collect\/(.*)/, async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
 
     try {
-        // Находим, где в строке заканчивается слово 'collect'
-        const marker = '/collect';
-        const markerIndex = req.originalUrl.indexOf(marker);
+        // Извлекаем чистый хвост пути напрямую из оригинального URL
+        // Отрезаем всё, что идет после слова "/collect/"
+        const marker = '/collect/';
+        const pathIndex = req.originalUrl.indexOf(marker);
+        const targetPath = req.originalUrl.substring(pathIndex + marker.length);
         
-        // Отрезаем всё, что идет ПОСЛЕ '/collect'
-        // Например: из '/collect/watch/106...' получим '/watch/106...'
-        const pathWithQuery = req.originalUrl.substring(markerIndex + marker.length);
-        
-        const targetUrl = `https://mc.yandex.ru${pathWithQuery}`;
+        const targetUrl = `https://mc.yandex.ru{targetPath}`;
 
         const response = await axios({
             method: req.method,
@@ -109,14 +108,14 @@ app.all(/^\/collect\/(.*)/, async (req, res) => {
 
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Если Яндекс ответил 404, мы выведем в логи ТОЧНЫЙ адрес, по которому стучались
-        const errorMarker = '/collect';
-        const errorPath = req.originalUrl.substring(req.originalUrl.indexOf(errorMarker) + errorMarker.length);
-        console.error(`404 Ошибка! Яндекс не видит путь: https://mc.yandex.ru${errorPath}`);
+        // Теперь мы увидим РЕАЛЬНЫЙ URL в логах, если он снова будет битым
+        const errPath = req.originalUrl.split('/collect/')[1] || 'пусто';
+        console.error(`404 по адресу: https://mc.yandex.ru{errPath}`);
         
         res.status(200).send(''); 
     }
 });
+
 
 
 
