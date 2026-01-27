@@ -83,13 +83,18 @@ app.get('/lib/metrika.js', async (req, res) => {
 // Мы даем имя параметру :wildcard и разрешаем в нем любые символы (*)
 // Используем Regex. Для Node.js 22 это единственный способ захватить всё без ошибок.
 app.all(/^\/collect\/(.*)/, async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
     try {
-        // В регулярках захваченная группа (.*) попадает в массив req.params[0]
-        const path = req.params[0]; 
-        const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+        // Находим, где в строке заканчивается слово 'collect'
+        const marker = '/collect';
+        const markerIndex = req.originalUrl.indexOf(marker);
         
-        // Теперь URL будет точно правильным: https://mc.yandex.ru...
-        const targetUrl = `https://mc.yandex.ru{path}${query}`;
+        // Отрезаем всё, что идет ПОСЛЕ '/collect'
+        // Например: из '/collect/watch/106...' получим '/watch/106...'
+        const pathWithQuery = req.originalUrl.substring(markerIndex + marker.length);
+        
+        const targetUrl = `https://mc.yandex.ru${pathWithQuery}`;
 
         const response = await axios({
             method: req.method,
@@ -102,17 +107,17 @@ app.all(/^\/collect\/(.*)/, async (req, res) => {
             responseType: 'arraybuffer'
         });
 
-        res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Выводим в лог реальный URL, чтобы убедиться, что он не "битый"
-        const debugPath = req.params[0];
-        console.error(`404 на стороне Яндекса. Путь был: /${debugPath}`);
+        // Если Яндекс ответил 404, мы выведем в логи ТОЧНЫЙ адрес, по которому стучались
+        const errorMarker = '/collect';
+        const errorPath = req.originalUrl.substring(req.originalUrl.indexOf(errorMarker) + errorMarker.length);
+        console.error(`404 Ошибка! Яндекс не видит путь: https://mc.yandex.ru${errorPath}`);
         
-        res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(200).send(''); 
     }
 });
+
 
 
 
