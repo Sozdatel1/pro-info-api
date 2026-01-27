@@ -59,11 +59,12 @@ app.get('/lib/metrika.js', async (req, res) => {
 // 2. Прокси данных
 // Было: app.all('/collect/*', ...
 // Стало (исправленный вариант для новых версий Express):
-app.all('/collect/(.*)', async (req, res) => {
+// Исправленный синтаксис для Express 2026 года
+app.all('/collect/:path(*)', async (req, res) => {
     try {
-        // Извлекаем путь, который идет после /collect/
-        const pathAfterCollect = req.params[0]; 
-        const targetUrl = `https://mc.yandex.ru{pathAfterCollect}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`;
+        // Формируем целевой URL Яндекса
+        // req.params.path содержит все, что идет после /collect/
+        const targetUrl = `https://mc.yandex.ru{req.params.path}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`;
         
         const response = await axios({
             method: req.method,
@@ -73,16 +74,16 @@ app.all('/collect/(.*)', async (req, res) => {
                 'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip,
                 'User-Agent': req.headers['user-agent']
             },
-            responseType: 'arraybuffer' // Важно для корректной пересылки данных
+            responseType: 'arraybuffer'
         });
 
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Если ошибка — просто отдаем 200, чтобы не спамить в консоль браузера
         res.status(200).send();
     }
 });
+
 
 
 
