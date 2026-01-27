@@ -85,17 +85,14 @@ app.get('/lib/metrika.js', async (req, res) => {
 // Используем app.use — он не парсит "звездочки" как регулярки, 
 // поэтому PathError (ошибка 2026 года) не возникнет.
 app.use('/collect', async (req, res) => {
-    // Разрешаем Vercel обращаться к Render
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    // Если это предварительный запрос (OPTIONS), сразу отвечаем 200
-    if (req.method === 'OPTIONS') return res.status(200).end();
-
+    
     try {
-        // Достаем хвост пути (напр. /watch/106462068...)
-        const targetPath = req.originalUrl.replace('/collect', '');
+        // В 2026 году на Render req.url может начинаться как со слэша, так и без него.
+        // Отрезаем '/collect' и следим за тем, чтобы путь начинался с ОДНОГО слэша.
+        let targetPath = req.originalUrl.replace('/collect', '');
+        if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
+
         const targetUrl = `https://mc.yandex.ru${targetPath}`;
 
         const response = await axios({
@@ -109,18 +106,21 @@ app.use('/collect', async (req, res) => {
             responseType: 'arraybuffer'
         });
 
-        // --- ТОТ САМЫЙ ЛОГ УСПЕХА ---
-        console.log(`✅ Данные Метрики успешно отправлены: ${targetPath.split('?')[0]}`);
+        // --- ЛОГ УСПЕХА ---
+        console.log(`✅ Метрика принята: ${targetPath.split('?')[0]}`);
         
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Логируем ошибку, только если это не обычный 404 (чтобы не спамить)
-        if (e.response && e.response.status !== 404) {
-            console.error(`❌ Ошибка Метрики: ${e.message}`);
+        // Убираем пугающее сообщение про блокировку, если это просто 404
+        if (e.response && e.response.status === 404) {
+            console.warn(`⚠️ Яндекс не нашел путь: ${req.originalUrl.replace('/collect', '')}`);
+        } else {
+            console.error(`❌ Ошибка прокси: ${e.message}`);
         }
         res.status(200).send(''); 
     }
 });
+
 
 
 
