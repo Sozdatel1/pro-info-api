@@ -44,21 +44,25 @@ let cachedMetrikaCode = "";
 // 1. Улучшенная функция скачивания
 async function updateMetrikaCache() {
     try {
-        // Ссылка ОБЯЗАТЕЛЬНО должна вести на файл .js
         const response = await axios.get('https://yastat.net', {
-            timeout: 10000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept': '*/*'
+            },
+            timeout: 10000
         });
         
-        // Подменяем ссылки на прокси
+        // Маскируем ссылки
         cachedMetrikaCode = response.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
-        console.log("✅ Метрика в памяти. Размер:", cachedMetrikaCode.length, "байт");
+        
+        console.log(`✅ Метрика в памяти. Реальный размер: ${cachedMetrikaCode.length} байт`);
         return true;
     } catch (e) {
-        console.error("❌ Ошибка кэша:", e.message);
+        console.error("❌ Ошибка кэширования:", e.message);
         return false;
     }
 }
+
 
 // 2. Роут, который ГАРАНТИРОВАННО отдает код
 app.get('/lib/metrika.js', (req, res) => {
