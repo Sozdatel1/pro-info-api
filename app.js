@@ -88,12 +88,12 @@ app.use('/collect', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     
     try {
-        // В 2026 году на Render req.url может начинаться как со слэша, так и без него.
-        // Отрезаем '/collect' и следим за тем, чтобы путь начинался с ОДНОГО слэша.
-        let targetPath = req.originalUrl.replace('/collect', '');
-        if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
-
-        const targetUrl = `https://mc.yandex.ru${targetPath}`;
+        // 1. Получаем хвост пути. Например: /watch/106462068...
+        // Используем substring, чтобы точно отрезать приставку /collect
+        const targetPath = req.originalUrl.substring(req.originalUrl.indexOf('/collect') + 8);
+        
+        // 2. Склеиваем URL. Важно, чтобы между доменом и путем был ОДИН слэш.
+        const targetUrl = `https://mc.yandex.ru${targetPath.startsWith('/') ? '' : '/'}${targetPath}`;
 
         const response = await axios({
             method: req.method,
@@ -107,16 +107,14 @@ app.use('/collect', async (req, res) => {
         });
 
         // --- ЛОГ УСПЕХА ---
-        console.log(`✅ Метрика принята: ${targetPath.split('?')[0]}`);
+        console.log(`✅ Метрика доставлена: ${targetPath.split('?')[0]}`);
         
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Убираем пугающее сообщение про блокировку, если это просто 404
-        if (e.response && e.response.status === 404) {
-            console.warn(`⚠️ Яндекс не нашел путь: ${req.originalUrl.replace('/collect', '')}`);
-        } else {
-            console.error(`❌ Ошибка прокси: ${e.message}`);
-        }
+        // Выводим РЕАЛЬНЫЙ путь в лог ошибки, чтобы понять, почему был 404
+        const errPath = req.originalUrl.substring(req.originalUrl.indexOf('/collect') + 8);
+        console.error(`⚠️ 404 по адресу: https://mc.yandex.ru${errPath.startsWith('/') ? '' : '/'}${errPath}`);
+        
         res.status(200).send(''); 
     }
 });
