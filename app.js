@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
-
+app.use(express.json());
 // 1. Настройка CORS для Express
 app.use(cors({
     origin: "*", 
@@ -40,39 +40,37 @@ io.on('connection', (socket) => {
     });
 });
 
-const axios = require('axios');
 
 // Добавьте эти маршруты к вашим существующим (где сокеты)
 
-// 1. Прокси скрипта
 app.get('/lib/metrika.js', async (req, res) => {
     try {
-        const response = await axios.get('https://mc.yandex.ru');
+        const response = await axios.get('https://mc.yandex.ru', { 
+            responseType: 'text' 
+        });
         res.setHeader('Content-Type', 'application/javascript');
-        res.setHeader('Access-Control-Allow-Origin', '*'); // Разрешаем Vercel забрать файл
+        res.setHeader('Access-Control-Allow-Origin', '*');
         res.send(response.data);
     } catch (e) {
-        res.status(500).send('Error');
+        console.error('Ошибка загрузки скрипта:', e.message);
+        res.status(500).send('console.log("Metrika proxy error");');
     }
 });
 
-// 2. Прокси данных
-// Используем регулярное выражение вместо строки. 
-// Это заставит Express принять любой путь после /collect/
+// МАРШРУТ 2: Принимаем данные (используем Regex для стабильности)
 app.all(/^\/collect\/(.*)/, async (req, res) => {
     try {
-        // req.params[0] содержит всё, что попало в скобки (.*)
-        const pathAfter = req.params[0];
-        const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-        const targetUrl = `https://mc.yandex.ru{pathAfter}${queryString}`;
-        
+        const path = req.params[0];
+        const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+        const targetUrl = `https://mc.yandex.ru{path}${query}`;
+
         const response = await axios({
             method: req.method,
             url: targetUrl,
             data: req.body,
             headers: {
-                'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip,
-                'User-Agent': req.headers['user-agent']
+                'User-Agent': req.headers['user-agent'],
+                'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip
             },
             responseType: 'arraybuffer'
         });
@@ -80,10 +78,10 @@ app.all(/^\/collect\/(.*)/, async (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
-        res.status(200).send();
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.status(200).send(''); 
     }
 });
-
 
 
 
