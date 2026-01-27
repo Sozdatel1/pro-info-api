@@ -42,13 +42,36 @@ io.on('connection', (socket) => {
 
 
 // Добавьте эти маршруты к вашим существующим (где сокеты)
-app.get('/lib/metrika.js', (req, res) => {
-    // Разрешаем доступ
+app.get('/lib/metrika.js', async (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    // Перенаправляем браузер на «неубиваемое» зеркало Яндекса
-    // yastat.net — это их официальный CDN, он работает быстрее всего
-    res.redirect('https://yastat.net');
+    
+    try {
+        // Мы не скачиваем файл, а просто перенаправляем поток данных (Stream)
+        // Это обходит многие блокировки MIME и CORS 2026 года
+        const response = await axios({
+            method: 'get',
+            url: 'https://yastat.net',
+            responseType: 'stream'
+        });
+        response.data.pipe(res);
+    } catch (e) {
+        // Если даже стрим не прошел, отдаем команду на загрузку оригинала
+        // чтобы сайт не остался совсем без аналитики
+        res.send(`
+            const script = document.createElement("script");
+            script.src = "https://yastat.net";
+            script.onload = () => {
+                ym(106462068, "init", {
+                    dest: "https://pro-info-api.onrender.com",
+                    clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true
+                });
+            };
+            document.head.appendChild(script);
+        `);
+    }
 });
+
 
 
 
