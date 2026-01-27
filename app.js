@@ -46,25 +46,24 @@ app.get('/lib/metrika.js', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
     res.setHeader('Access-Control-Allow-Origin', '*');
     
-    // Мы отдаем мини-загрузчик. Он скачает Метрику напрямую в обход блокировок Render,
-    // но сохранит проксирование данных через твой сервер.
+    // Используем максимально упрощенный код без лишних функций
+    // В 2026 году прямой document.write или вставка в начало head работают лучше
     const code = `
-    (function() {
-        const s = document.createElement("script");
-        s.src = "https://yastat.net";
-        s.async = true;
-        s.onload = function() {
-            console.log("✅ Метрика инициализирована");
-            ym(106462068, "init", {
-                dest: "https://pro-info-api.onrender.com",
-                clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true
-            });
-        };
-        document.head.appendChild(s);
-    })();`;
+    var yaScript = document.createElement('script');
+    yaScript.src = 'https://yastat.net';
+    yaScript.async = true;
+    yaScript.onload = function() {
+        ym(106462068, "init", {
+            dest: "https://pro-info-api.onrender.com",
+            clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true
+        });
+    };
+    document.getElementsByTagName('head')[0].appendChild(yaScript);
+    `;
     
     res.send(code);
 });
+
 
 
 
