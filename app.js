@@ -81,14 +81,12 @@ app.get('/lib/metrika.js', async (req, res) => {
 // МАРШРУТ 2: Принимаем данные (используем Regex для стабильности)
 // Используем строку с подстановочным знаком для надежности
 // Мы даем имя параметру :wildcard и разрешаем в нем любые символы (*)
-app.all('/collect/:wildcard(*)', async (req, res) => {
+// Используем Regex. Для Node.js 22 это единственный способ захватить всё без ошибок.
+app.all(/^\/collect\/(.*)/, async (req, res) => {
     try {
-        // Извлекаем то, что попало в "звездочку"
-        const path = req.params.wildcard;
-        // Собираем Query-строку (все что после ?)
+        // В регулярных выражениях захваченная часть лежит в req.params[0]
+        const path = req.params[0]; 
         const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-        
-        // Формируем чистый URL для Яндекса
         const targetUrl = `https://mc.yandex.ru{path}${query}`;
 
         const response = await axios({
@@ -105,12 +103,11 @@ app.all('/collect/:wildcard(*)', async (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Вместо падения сервера просто логируем ошибку
-        console.error(`Ошибка прокси: ${e.message}`);
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(200).send(''); 
     }
 });
+
 
 
 
