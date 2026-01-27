@@ -81,9 +81,12 @@ app.get('/lib/metrika.js', async (req, res) => {
 // МАРШРУТ 2: Принимаем данные (используем Regex для стабильности)
 app.all(/^\/collect\/(.*)/, async (req, res) => {
     try {
-        const path = req.params[0];
-        const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-        const targetUrl = `https://mc.yandex.ru{path}${query}`;
+        // В новых версиях Express путь лежит в req.params[0]
+        const path = req.params[0]; 
+        const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+        
+        // Формируем чистый URL для Яндекса
+        const targetUrl = `https://mc.yandex.ru{path}${queryString}`;
 
         const response = await axios({
             method: req.method,
@@ -99,10 +102,13 @@ app.all(/^\/collect\/(.*)/, async (req, res) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
+        // Ошибка 404 в логах Render шла отсюда
+        console.error("Ошибка прокси-запроса к Яндексу:", e.message);
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(200).send(''); 
     }
 });
+
 
 
 
