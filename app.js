@@ -79,12 +79,13 @@ app.get('/lib/metrika.js', async (req, res) => {
 
 
 // МАРШРУТ 2: Принимаем данные (используем Regex для стабильности)
-app.all(/^\/collect\/(.*)/, async (req, res) => {
+// Используем строку с подстановочным знаком для надежности
+app.all('/collect/*', async (req, res) => {
     try {
-        // 1. Берем полный путь запроса и вырезаем из него '/collect/'
-        // Это гарантирует, что мы получим точный путь для Яндекса (watch/ID...)
-        const rawPath = req.url.replace('/collect/', '');
-        const targetUrl = `https://mc.yandex.ru{rawPath}`;
+        // 1. Извлекаем чистый путь для Яндекса
+        // Отрезаем '/collect/' (9 символов) от начала пути
+        const targetPath = req.originalUrl.split('/collect/')[1];
+        const targetUrl = `https://mc.yandex.ru{targetPath}`;
 
         const response = await axios({
             method: req.method,
@@ -94,20 +95,21 @@ app.all(/^\/collect\/(.*)/, async (req, res) => {
                 'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
                 'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip
             },
-            responseType: 'arraybuffer' // Важно для передачи бинарных данных (Вебвизор)
+            responseType: 'arraybuffer'
         });
 
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(response.status).send(response.data);
     } catch (e) {
-        // Логируем точный URL, на котором произошла ошибка 404
-        const failedUrl = `https://mc.yandex.ru${req.url.replace('/collect', '')}`;
-        console.error(`Ошибка 404. Проверьте этот путь: ${failedUrl}`);
+        // Если ошибка 404 всё еще есть, выводим реальный URL, который получился
+        const debugPath = req.originalUrl.split('/collect/')[1];
+        console.error(`Ошибка: ${e.message} | Пытался открыть: https://mc.yandex.ru{debugPath}`);
         
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.status(200).send(''); 
     }
 });
+
 
 
 
