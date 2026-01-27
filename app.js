@@ -42,39 +42,14 @@ io.on('connection', (socket) => {
 
 
 // Добавьте эти маршруты к вашим существующим (где сокеты)
-app.get('/lib/metrika.js', async (req, res) => {
+app.get('/lib/metrika.js', (req, res) => {
+    // Разрешаем доступ
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', 'application/javascript');
-    
-    try {
-        // ОШИБКА БЫЛА ТУТ: Нужно указывать полный путь к файлу tag.js
-        const response = await axios.get('https://mc.yandex.ru', {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0.0.0 Safari/537.36',
-                'Referer': 'https://yandex.ru'
-            },
-            timeout: 5000 
-        });
-
-        if (response.data && response.data.length > 500) {
-            res.send(response.data);
-        } else {
-            throw new Error('Short response');
-        }
-    } catch (e) {
-        // Лог ошибки теперь будет понятнее
-        console.error("Основной сервер Яндекса недоступен, пробую зеркало...");
-        
-        try {
-            // ОШИБКА БЫЛА ТУТ: Нужно указывать полный путь к зеркалу
-            const fallback = await axios.get('https://cdn.jsdelivr.net');
-            res.send(fallback.data);
-        } catch (e2) {
-            console.error("Все источники заблокированы");
-            res.send('console.log("Metrika: all sources blocked");');
-        }
-    }
+    // Перенаправляем браузер на «неубиваемое» зеркало Яндекса
+    // yastat.net — это их официальный CDN, он работает быстрее всего
+    res.redirect('https://yastat.net');
 });
+
 
 
 
