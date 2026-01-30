@@ -50,11 +50,12 @@ let cachedCode = "";
 
 async function refreshMetrika() {
      const sources = [
-        'https://yastat.net',
-        'https://mc.yandex.ru',
-        'https://cdn.jsdelivr.net',
-        'https://unpkg.com'
-    ];
+    'https://yastat.net',
+    'https://mc.yandex.ru',
+    'https://www.googletagmanager.com', // (просто для теста связи)
+    'https://cdn.jsdelivr.net'
+];
+
 
     for (let url of sources) {
         try {
