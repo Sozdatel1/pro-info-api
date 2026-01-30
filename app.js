@@ -39,124 +39,66 @@ io.on('connection', (socket) => {
         io.emit('updateCount', onlineCount);
     });
 });
-let cachedMetrikaCode = ""; 
 
-// 1. Улучшенная функция скачивания
-async function updateMetrikaCache() {
+
+const express = require('express');
+const axios = require('axios');
+const JavaScriptObfuscator = require('javascript-obfuscator');
+const app = express();
+
+let cachedCode = "";
+
+// 1. Функция кражи и маскировки кода
+async function refreshMetrika() {
     try {
-        // В 2026 году этот адрес (yastat.net/s3/metrika/tag.js) — самый стабильный
-        const response = await axios.get('https://yastat.net', {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0.0.0 Safari/537.36',
-                'Referer': 'https://yandex.ru'
-            },
-            timeout: 15000
+        const res = await axios.get('https://yastat.net');
+        let code = res.data;
+        
+        // Меняем оригинальный адрес сбора данных на твой прокси
+        code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
+
+        // ЖЕСТКАЯ ОБФУСКАЦИЯ (делает код неузнаваемым для антивируса)
+        const obfuscated = JavaScriptObfuscator.obfuscate(code, {
+            compact: true,
+            controlFlowFlattening: true, // Запутывает логику
+            numbersToExpressions: true,  // Превращает числа в формулы
+            splitStrings: true,          // Режет строки (чтобы слово "yandex" не нашли)
+            stringArrayThreshold: 1
         });
         
-        // Если пришел HTML (начинается с <!), значит нас заблокировали
-        if (typeof response.data === 'string' && response.data.trim().startsWith('<!')) {
-            throw new Error("Яндекс отдал HTML вместо скрипта (блокировка IP)");
-        }
-
-        // Подменяем ссылки на твой прокси
-        cachedMetrikaCode = response.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
-        
-        console.log(`✅ ПОБЕДА! Метрика в памяти. Размер: ${cachedMetrikaCode.length} байт`);
-        return true;
-    } catch (e) {
-        console.error("❌ Ошибка. Пробую запасной вариант (CDN)...");
-        try {
-            // Запасной вариант — проверенный CDN
-            const fallback = await axios.get('https://cdn.jsdelivr.net');
-            cachedMetrikaCode = fallback.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
-            console.log(`✅ Загружено через CDN. Размер: ${cachedMetrikaCode.length} байт`);
-            return true;
-        } catch (err) {
-            console.error("❌ Все источники заблокированы");
-            return false;
-        }
-    }
+        cachedCode = obfuscated.getObfuscatedCode();
+        console.log("✅ Код зашифрован");
+    } catch (e) { console.error("Ошибка кэша"); }
 }
 
+// Обновляем кэш при запуске
+refreshMetrika();
 
-
-// 2. Роут, который ГАРАНТИРОВАННО отдает код
-app.get('/lib/metrika.js', (req, res) => {
-    res.setHeader('Content-Type', 'application/javascript');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    
-    if (cachedMetrikaCode && cachedMetrikaCode.length > 1000) {
-        res.send(cachedMetrikaCode);
-    } else {
-        // Если вдруг пусто — экстренно редиректим на оригинал, чтобы не было 0 B
-        res.redirect('https://yastat.net');
-    }
+// 2. Раздаем код под видом CSS (антивирусы лояльнее к стилям)
+app.get('/style/main.css', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript'); // Но браузер поймет как JS
+    res.send(cachedCode);
 });
 
-// 3. ЗАПУСК СЕРВЕРА ТОЛЬКО ПОСЛЕ ЗАГРУЗКИ КЭША
-updateMetrikaCache().then(() => {
-    const PORT = process.env.PORT || 3000;
-    server.listen(PORT, () => {
-        console.log(`🚀 Сервер готов на порту ${PORT}`);
-    });
-});
-
-
-
-
-
-
-
-// МАРШРУТ 2: Принимаем данные (используем Regex для стабильности)
-// Используем строку с подстановочным знаком для надежности
-// Мы даем имя параметру :wildcard и разрешаем в нем любые символы (*)
-// Используем Regex. Для Node.js 22 это единственный способ захватить всё без ошибок.
-// Используем app.use — он не парсит "звездочки" как регулярки, 
-// поэтому PathError (ошибка 2026 года) не возникнет.
-app.use('/collect', async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    
+// 3. Прокси-роут для данных
+app.use('/log', async (req, res) => {
     try {
-        // 1. Получаем хвост пути. Например: /watch/106462068...
-        // Используем substring, чтобы точно отрезать приставку /collect
-        const targetPath = req.originalUrl.substring(req.originalUrl.indexOf('/collect') + 8);
+        const path = req.originalUrl.replace('/log', '');
+        const targetUrl = `https://mc.yandex.ru${path}`;
         
-        // 2. Склеиваем URL. Важно, чтобы между доменом и путем был ОДИН слэш.
-        const targetUrl = `https://mc.yandex.ru${targetPath.startsWith('/') ? '' : '/'}${targetPath}`;
-
         const response = await axios({
             method: req.method,
             url: targetUrl,
             data: req.body,
             headers: {
-                'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0',
-                'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip
+                'User-Agent': req.headers['user-agent'],
+                'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip,
+                'Content-Type': 'text/plain' // Маскировка содержимого
             },
             responseType: 'arraybuffer'
         });
-
-        // --- ЛОГ УСПЕХА ---
-        console.log(`✅ Метрика доставлена: ${targetPath.split('?')[0]}`);
-        
         res.status(response.status).send(response.data);
-    } catch (e) {
-        // Выводим РЕАЛЬНЫЙ путь в лог ошибки, чтобы понять, почему был 404
-        const errPath = req.originalUrl.substring(req.originalUrl.indexOf('/collect') + 8);
-        console.error(`⚠️ 404 по адресу: https://mc.yandex.ru${errPath.startsWith('/') ? '' : '/'}${errPath}`);
-        
-        res.status(200).send(''); 
-    }
+    } catch (e) { res.status(200).send(''); }
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
+app.listen(process.env.PORT || 3000);
