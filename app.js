@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
+const hardcodedUrl = "https://yastat.net";
 app.use(express.json());
 // 1. Настройка CORS для Express
 app.use(cors({
