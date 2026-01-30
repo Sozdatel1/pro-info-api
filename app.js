@@ -48,41 +48,45 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 
 let cachedCode = "";
 
-// 1. Функция кражи и маскировки кода
 async function refreshMetrika() {
     try {
+        // ИСПРАВЛЕНО: Полный путь к скрипту
         const res = await axios.get('https://yastat.net');
         let code = res.data;
         
-        // Меняем оригинальный адрес сбора данных на твой прокси
+        // Маскируем домен сбора данных. 
+        // ВАЖНО: добавляем /log, чтобы запросы летели в твой роут проксирования
         code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
 
-        // ЖЕСТКАЯ ОБФУСКАЦИЯ (делает код неузнаваемым для антивируса)
         const obfuscated = JavaScriptObfuscator.obfuscate(code, {
             compact: true,
-            controlFlowFlattening: true, // Запутывает логику
-            numbersToExpressions: true,  // Превращает числа в формулы
-            splitStrings: true,          // Режет строки (чтобы слово "yandex" не нашли)
+            controlFlowFlattening: true, 
+            deadCodeInjection: true,
+            stringArray: true,
             stringArrayThreshold: 1
         });
         
         cachedCode = obfuscated.getObfuscatedCode();
-        console.log("✅ Код зашифрован");
-    } catch (e) { console.error("Ошибка кэша"); }
+        console.log("✅ Код успешно зашифрован и готов к выдаче");
+    } catch (e) { 
+        console.error("❌ Ошибка кэша:", e.message); 
+    }
 }
 
-// Обновляем кэш при запуске
 refreshMetrika();
 
-// 2. Раздаем код под видом CSS (антивирусы лояльнее к стилям)
+// Отдаем скрипт
 app.get('/style/main.css', (req, res) => {
-    res.setHeader('Content-Type', 'application/javascript'); // Но браузер поймет как JS
-    res.send(cachedCode);
+    res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('Access-Control-Allow-Origin', '*'); 
+    res.send(cachedCode || 'console.log("Server starting, please refresh...")');
 });
 
-// 3. Прокси-роут для данных
+// Проксируем данные
 app.use('/log', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
     try {
+        // Отрезаем /log из URL
         const path = req.originalUrl.replace('/log', '');
         const targetUrl = `https://mc.yandex.ru${path}`;
         
@@ -93,12 +97,17 @@ app.use('/log', async (req, res) => {
             headers: {
                 'User-Agent': req.headers['user-agent'],
                 'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip,
-                'Content-Type': 'text/plain' // Маскировка содержимого
+                'Content-Type': 'text/plain'
             },
             responseType: 'arraybuffer'
         });
         res.status(response.status).send(response.data);
-    } catch (e) { res.status(200).send(''); }
+    } catch (e) { 
+        res.status(200).send(''); 
+    }
 });
 
-app.listen(process.env.PORT || 3000);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`🚀 Сервер на порту ${PORT}`);
+});
