@@ -51,39 +51,33 @@ async function downloadAndPrepare() {
     
     try {
         console.log("📡 Пытаюсь скачать свежий tag.js...");
-        // Качаем с CDN, если yastat заблокирован
+        // ИСПРАВЛЕНО: Указан ПОЛНЫЙ путь к файлу на CDN
         const res = await axios.get('https://cdn.jsdelivr.net');
         
+        if (typeof res.data !== 'string' || res.data.length < 5000) {
+             throw new Error("Скачанный файл слишком мал или это не JS");
+        }
+
         fs.writeFileSync(filePath, res.data);
         console.log("✅ Файл сохранен как original_tag.js");
         
-        // Теперь вызываем твою функцию обфускации
         processLocalFile(); 
     } catch (err) {
         console.error("❌ Не удалось скачать файл: " + err.message);
-        // Если скачать не вышло, пробуем работать с тем, что уже есть на диске
         processLocalFile();
     }
 }
 
-// Запускаем это вместо простого processLocalFile()
-downloadAndPrepare();
-
-
-
-
-let obfuscatedCode = "";
-
-// Функция обработки твоего скачанного файла
 function processLocalFile() {
     try {
         const filePath = path.join(__dirname, 'original_tag.js');
+        if (!fs.existsSync(filePath)) throw new Error("Файл отсутствует");
+
         let code = fs.readFileSync(filePath, 'utf8');
 
-        // 1. ПОДМЕНА: Теперь данные шлются не в Яндекс, а на ТВОЙ сервер
+        // ИСПРАВЛЕНО: Добавлен /log, чтобы данные попадали в твой роут проксирования
         code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
 
-        // 2. МАСКИРОВКА: Прячем код от Касперского
         const result = JavaScriptObfuscator.obfuscate(code, {
             compact: true,
             stringArray: true,
@@ -94,9 +88,10 @@ function processLocalFile() {
         obfuscatedCode = result.getObfuscatedCode();
         console.log("💎 ПОБЕДА! Код из файла зашифрован.");
     } catch (e) {
-        console.error("❌ Ошибка чтения файла. Проверь, что original_tag.js лежит рядом с app.js");
+        console.error("❌ Ошибка обработки: " + e.message);
     }
 }
+
 
 processLocalFile();
 
