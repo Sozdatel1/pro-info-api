@@ -49,80 +49,70 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 let cachedCode = "";
 
 async function refreshMetrika() {
-    // ВНИМАНИЕ: Здесь ПОЛНЫЕ пути к файлам. Без них будет ошибка HTML.
+    // Я СМЕНИЛ ТЕКСТ ЛОГОВ, ЧТОБЫ ТЫ ПОНЯЛ, ЧТО ЗАПУСТИЛСЯ НОВЫЙ КОД
     const sources = [
         'https://yastat.net',
         'https://mc.yandex.ru',
-        'https://cdn.jsdelivr.net',
-        'https://unpkg.com'
+        'https://cdn.jsdelivr.net'
     ];
 
     for (let url of sources) {
         try {
-            console.log(`Попытка загрузки: ${url}`);
+            console.log(`--- ПРОВЕРКА СВЯЗИ С: ${url} ---`);
             const res = await axios.get(url, { timeout: 10000 });
             let code = res.data;
 
-            // Проверка: если в начале <!, значит это HTML, а не JS
-            if (typeof code === 'string' && code.trim().startsWith('<!')) {
-                console.log(`⚠️ Источник ${url} отдал HTML вместо скрипта. Пропускаю...`);
+            if (typeof code === 'string' && (code.trim().startsWith('<!') || code.length < 1000)) {
+                console.log(`⚠️ Нашел HTML или мусор по адресу ${url}. Иду дальше...`);
                 continue;
             }
 
-            // Маскируем домен сбора данных. ОБЯЗАТЕЛЬНО добавляем /log
             code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
 
             const obfuscated = JavaScriptObfuscator.obfuscate(code, {
                 compact: true,
                 controlFlowFlattening: false, 
-                stringArray: true,
-                stringArrayThreshold: 1
+                stringArray: true
             });
             
             cachedCode = obfuscated.getObfuscatedCode();
-            console.log("✅ ПОБЕДА! Код зашифрован.");
+            console.log("💎 ФАНТАСТИКА! МЕТРИКА ЗАШИФРОВАНА!");
             return; 
         } catch (e) {
-            console.error(`❌ Ошибка на источнике ${url}: ${e.message}`);
+            console.error(`❌ Провал на ${url}: ${e.message}`);
         }
     }
-    console.error("!!! КРИТИЧЕСКАЯ ОШИБКА: Ни один источник не доступен.");
+    console.error("🚨 ВСЕ ИСТОЧНИКИ СДОХЛИ. ПРОВЕРЬ ИНТЕРНЕТ НА СЕРВЕРЕ.");
 }
 
 refreshMetrika();
 
-// Отдаем скрипт (маскируемся под CSS)
 app.get('/style/main.css', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
     res.setHeader('Access-Control-Allow-Origin', '*'); 
-    res.send(cachedCode || 'console.log("Server starting, please refresh...")');
+    res.send(cachedCode || 'console.log("Сервер пустой")');
 });
 
-// Проксируем данные
 app.use('/log', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     try {
         const path = req.originalUrl.replace('/log', '');
         const targetUrl = `https://mc.yandex.ru${path}`;
-        
         const response = await axios({
             method: req.method,
             url: targetUrl,
             data: req.body,
             headers: {
                 'User-Agent': req.headers['user-agent'],
-                'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip,
-                'Content-Type': 'text/plain'
+                'X-Forwarded-For': req.headers['x-forwarded-for'] || req.ip
             },
             responseType: 'arraybuffer'
         });
         res.status(response.status).send(response.data);
-    } catch (e) { 
-        res.status(200).send(''); 
-    }
+    } catch (e) { res.status(200).send(''); }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Сервер на порту ${PORT}`);
+    console.log(`🔥 ШПИОНСКИЙ СЕРВЕР НА ПОРТУ ${PORT}`);
 });
