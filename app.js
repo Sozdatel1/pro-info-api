@@ -49,11 +49,11 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 let cachedCode = "";
 
 async function refreshMetrika() {
-     const sources = [
+    const sources = [
     'https://yastat.net',
     'https://mc.yandex.ru',
-    'https://www.googletagmanager.com', // (просто для теста связи)
-    'https://cdn.jsdelivr.net'
+    'https://cdn.jsdelivr.net',
+    'https://unpkg.com'
 ];
 
 
