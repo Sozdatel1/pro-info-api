@@ -43,61 +43,75 @@ io.on('connection', (socket) => {
 });
 
 
+const fs = require('fs');
+const path = require('path');
 
-
-const JavaScriptObfuscator = require('javascript-obfuscator');
-
-
-let cachedCode = "";
-
-async function refreshMetrika() {
-    // Вбиваем прямую ссылку гвоздями прямо в запрос
-    const hardcodedUrl = "https://yastat.net";
+async function downloadAndPrepare() {
+    const filePath = path.join(__dirname, 'original_tag.js');
     
     try {
-        console.log("🚀 ПРЯМОЙ ШТУРМ АДРЕСА: " + hardcodedUrl);
-        const res = await axios.get(hardcodedUrl, { timeout: 15000 });
-        let code = res.data;
-
-        if (typeof code === 'string' && code.length > 5000) {
-            // Маскировка
-            code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
-            
-            console.log("🛠 ОБФУСКАЦИЯ ЗАПУЩЕНА...");
-            const obfuscated = JavaScriptObfuscator.obfuscate(code, {
-                compact: true,
-                stringArray: true
-            });
-            
-            cachedCode = obfuscated.getObfuscatedCode();
-            console.log("💎 ПОБЕДА!!! МЕТРИКА В КАРМАНЕ!");
-        } else {
-            console.log("⚠️ Яндекс отдал какую-то дичь вместо кода. Длина: " + (code ? code.length : 0));
-            // Если Яндекс подвел, пробуем запасной CDN прямо здесь
-            console.log("🚑 ПЛАН Б: Пробуем CDN...");
-            const backup = await axios.get("https://cdn.jsdelivr.net");
-            cachedCode = backup.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
-            console.log("✅ CDN СПАС СИТУАЦИЮ!");
-        }
-    } catch (e) {
-        console.error("🚨 ПОЛНЫЙ ПРОВАЛ: " + e.message);
+        console.log("📡 Пытаюсь скачать свежий tag.js...");
+        // Качаем с CDN, если yastat заблокирован
+        const res = await axios.get('https://cdn.jsdelivr.net');
+        
+        fs.writeFileSync(filePath, res.data);
+        console.log("✅ Файл сохранен как original_tag.js");
+        
+        // Теперь вызываем твою функцию обфускации
+        processLocalFile(); 
+    } catch (err) {
+        console.error("❌ Не удалось скачать файл: " + err.message);
+        // Если скачать не вышло, пробуем работать с тем, что уже есть на диске
+        processLocalFile();
     }
 }
 
+// Запускаем это вместо простого processLocalFile()
+downloadAndPrepare();
 
-refreshMetrika();
 
+
+
+let obfuscatedCode = "";
+
+// Функция обработки твоего скачанного файла
+function processLocalFile() {
+    try {
+        const filePath = path.join(__dirname, 'original_tag.js');
+        let code = fs.readFileSync(filePath, 'utf8');
+
+        // 1. ПОДМЕНА: Теперь данные шлются не в Яндекс, а на ТВОЙ сервер
+        code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
+
+        // 2. МАСКИРОВКА: Прячем код от Касперского
+        const result = JavaScriptObfuscator.obfuscate(code, {
+            compact: true,
+            stringArray: true,
+            rotateStringArray: true,
+            stringArrayThreshold: 1
+        });
+        
+        obfuscatedCode = result.getObfuscatedCode();
+        console.log("💎 ПОБЕДА! Код из файла зашифрован.");
+    } catch (e) {
+        console.error("❌ Ошибка чтения файла. Проверь, что original_tag.js лежит рядом с app.js");
+    }
+}
+
+processLocalFile();
+
+// Отдаем "невидимый" скрипт
 app.get('/style/main.css', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
-    res.setHeader('Access-Control-Allow-Origin', '*'); 
-    res.send(cachedCode || 'console.log("Сервер пустой")');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(obfuscatedCode || 'console.log("File not found")');
 });
 
+// Проксируем данные в Яндекс (Backend-to-Backend)
 app.use('/log', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     try {
-        const path = req.originalUrl.replace('/log', '');
-        const targetUrl = `https://mc.yandex.ru${path}`;
+        const targetUrl = `https://mc.yandex.ru${req.originalUrl.replace('/log', '')}`;
         const response = await axios({
             method: req.method,
             url: targetUrl,
@@ -113,6 +127,4 @@ app.use('/log', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🔥 ШПИОНСКИЙ СЕРВЕР НА ПОРТУ ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Сервер на порту ${PORT}`));
