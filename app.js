@@ -49,10 +49,11 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 let cachedCode = "";
 
 async function refreshMetrika() {
-    const sources = [
+     const sources = [
         'https://yastat.net',
-        'https://cdn.jsdelivr.net', // Запасной CDN
-        'https://unpkg.com'           // Еще один
+        'https://mc.yandex.ru',
+        'https://cdn.jsdelivr.net',
+        'https://unpkg.com'
     ];
 
     for (let url of sources) {
