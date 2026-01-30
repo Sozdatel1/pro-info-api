@@ -41,10 +41,10 @@ io.on('connection', (socket) => {
 });
 
 
-const express = require('express');
-const axios = require('axios');
+
+
 const JavaScriptObfuscator = require('javascript-obfuscator');
-const app = express();
+
 
 let cachedCode = "";
 
