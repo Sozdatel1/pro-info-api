@@ -49,41 +49,39 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 let cachedCode = "";
 
 async function refreshMetrika() {
-    // Я СМЕНИЛ ТЕКСТ ЛОГОВ, ЧТОБЫ ТЫ ПОНЯЛ, ЧТО ЗАПУСТИЛСЯ НОВЫЙ КОД
-    const sources = [
-        'https://yastat.net',
-        'https://mc.yandex.ru',
-        'https://cdn.jsdelivr.net'
-    ];
+    // Вбиваем прямую ссылку гвоздями прямо в запрос
+    const hardcodedUrl = "https://yastat.net";
+    
+    try {
+        console.log("🚀 ПРЯМОЙ ШТУРМ АДРЕСА: " + hardcodedUrl);
+        const res = await axios.get(hardcodedUrl, { timeout: 15000 });
+        let code = res.data;
 
-    for (let url of sources) {
-        try {
-            console.log(`--- ПРОВЕРКА СВЯЗИ С: ${url} ---`);
-            const res = await axios.get(url, { timeout: 10000 });
-            let code = res.data;
-
-            if (typeof code === 'string' && (code.trim().startsWith('<!') || code.length < 1000)) {
-                console.log(`⚠️ Нашел HTML или мусор по адресу ${url}. Иду дальше...`);
-                continue;
-            }
-
+        if (typeof code === 'string' && code.length > 5000) {
+            // Маскировка
             code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
-
+            
+            console.log("🛠 ОБФУСКАЦИЯ ЗАПУЩЕНА...");
             const obfuscated = JavaScriptObfuscator.obfuscate(code, {
                 compact: true,
-                controlFlowFlattening: false, 
                 stringArray: true
             });
             
             cachedCode = obfuscated.getObfuscatedCode();
-            console.log("💎 ФАНТАСТИКА! МЕТРИКА ЗАШИФРОВАНА!");
-            return; 
-        } catch (e) {
-            console.error(`❌ Провал на ${url}: ${e.message}`);
+            console.log("💎 ПОБЕДА!!! МЕТРИКА В КАРМАНЕ!");
+        } else {
+            console.log("⚠️ Яндекс отдал какую-то дичь вместо кода. Длина: " + (code ? code.length : 0));
+            // Если Яндекс подвел, пробуем запасной CDN прямо здесь
+            console.log("🚑 ПЛАН Б: Пробуем CDN...");
+            const backup = await axios.get("https://cdn.jsdelivr.net");
+            cachedCode = backup.data.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
+            console.log("✅ CDN СПАС СИТУАЦИЮ!");
         }
+    } catch (e) {
+        console.error("🚨 ПОЛНЫЙ ПРОВАЛ: " + e.message);
     }
-    console.error("🚨 ВСЕ ИСТОЧНИКИ СДОХЛИ. ПРОВЕРЬ ИНТЕРНЕТ НА СЕРВЕРЕ.");
 }
+
 
 refreshMetrika();
 
