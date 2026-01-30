@@ -49,29 +49,43 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 let cachedCode = "";
 
 async function refreshMetrika() {
-    try {
-        // ИСПРАВЛЕНО: Полный путь к скрипту
-        const res = await axios.get('https://yastat.net');
-        let code = res.data;
-        
-        // Маскируем домен сбора данных. 
-        // ВАЖНО: добавляем /log, чтобы запросы летели в твой роут проксирования
-        code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
+    const sources = [
+        'https://yastat.net',
+        'https://cdn.jsdelivr.net', // Запасной CDN
+        'https://unpkg.com'           // Еще один
+    ];
 
-        const obfuscated = JavaScriptObfuscator.obfuscate(code, {
-            compact: true,
-            controlFlowFlattening: true, 
-            deadCodeInjection: true,
-            stringArray: true,
-            stringArrayThreshold: 1
-        });
-        
-        cachedCode = obfuscated.getObfuscatedCode();
-        console.log("✅ Код успешно зашифрован и готов к выдаче");
-    } catch (e) { 
-        console.error("❌ Ошибка кэша:", e.message); 
+    for (let url of sources) {
+        try {
+            console.log(`Попытка загрузки: ${url}`);
+            const res = await axios.get(url, { timeout: 10000 });
+            let code = res.data;
+
+            // Проверка: если в начале <!, значит это HTML (ошибка), а не JS
+            if (typeof code === 'string' && code.trim().startsWith('<!')) {
+                console.log(`⚠️ Источник ${url} отдал HTML вместо скрипта. Пропускаю...`);
+                continue;
+            }
+
+            code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
+
+            const obfuscated = JavaScriptObfuscator.obfuscate(code, {
+                compact: true,
+                controlFlowFlattening: false, // Отключи для скорости, если падает
+                stringArray: true,
+                stringArrayThreshold: 1
+            });
+            
+            cachedCode = obfuscated.getObfuscatedCode();
+            console.log("✅ ПОБЕДА! Код зашифрован.");
+            return; // Выходим из цикла, если всё ок
+        } catch (e) {
+            console.error(`❌ Ошибка на источнике ${url}: ${e.message}`);
+        }
     }
+    console.error("!!! КРИТИЧЕСКАЯ ОШИБКА: Ни один источник не доступен.");
 }
+
 
 refreshMetrika();
 
