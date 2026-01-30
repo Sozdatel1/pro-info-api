@@ -49,13 +49,13 @@ const JavaScriptObfuscator = require('javascript-obfuscator');
 let cachedCode = "";
 
 async function refreshMetrika() {
+    // ВНИМАНИЕ: Здесь ПОЛНЫЕ пути к файлам. Без них будет ошибка HTML.
     const sources = [
-    'https://yastat.net',
-    'https://mc.yandex.ru',
-    'https://cdn.jsdelivr.net',
-    'https://unpkg.com'
-];
-
+        'https://yastat.net',
+        'https://mc.yandex.ru',
+        'https://cdn.jsdelivr.net',
+        'https://unpkg.com'
+    ];
 
     for (let url of sources) {
         try {
@@ -63,24 +63,25 @@ async function refreshMetrika() {
             const res = await axios.get(url, { timeout: 10000 });
             let code = res.data;
 
-            // Проверка: если в начале <!, значит это HTML (ошибка), а не JS
+            // Проверка: если в начале <!, значит это HTML, а не JS
             if (typeof code === 'string' && code.trim().startsWith('<!')) {
                 console.log(`⚠️ Источник ${url} отдал HTML вместо скрипта. Пропускаю...`);
                 continue;
             }
 
+            // Маскируем домен сбора данных. ОБЯЗАТЕЛЬНО добавляем /log
             code = code.replace(/https:\/\/mc\.yandex\.ru/g, 'https://pro-info-api.onrender.com');
 
             const obfuscated = JavaScriptObfuscator.obfuscate(code, {
                 compact: true,
-                controlFlowFlattening: false, // Отключи для скорости, если падает
+                controlFlowFlattening: false, 
                 stringArray: true,
                 stringArrayThreshold: 1
             });
             
             cachedCode = obfuscated.getObfuscatedCode();
             console.log("✅ ПОБЕДА! Код зашифрован.");
-            return; // Выходим из цикла, если всё ок
+            return; 
         } catch (e) {
             console.error(`❌ Ошибка на источнике ${url}: ${e.message}`);
         }
@@ -88,10 +89,9 @@ async function refreshMetrika() {
     console.error("!!! КРИТИЧЕСКАЯ ОШИБКА: Ни один источник не доступен.");
 }
 
-
 refreshMetrika();
 
-// Отдаем скрипт
+// Отдаем скрипт (маскируемся под CSS)
 app.get('/style/main.css', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
     res.setHeader('Access-Control-Allow-Origin', '*'); 
@@ -102,7 +102,6 @@ app.get('/style/main.css', (req, res) => {
 app.use('/log', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     try {
-        // Отрезаем /log из URL
         const path = req.originalUrl.replace('/log', '');
         const targetUrl = `https://mc.yandex.ru${path}`;
         
