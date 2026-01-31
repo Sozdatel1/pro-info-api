@@ -56,7 +56,7 @@ const redis = new Redis({
 });
 
 // ПАРОЛЬ: измени 'admin123' на свой!
-const ADMIN_PASS = "admin123"; 
+const ADMIN_PASS = process.env.ADMIN_PASS; 
 
 // Маршрут получения сообщений
 app.post('/get-msgs', async (req, res) => {
