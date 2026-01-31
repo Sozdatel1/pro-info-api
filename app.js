@@ -5,6 +5,11 @@ const cors = require('cors');
 const axios = require('axios');
 const app = express();
 app.use(express.json());
+const { Redis } = require('@upstash/redis');
+
+// Разрешаем фронтенду подключаться
+app.use(express.json());
+
 // 1. Настройка CORS для Express
 app.use(cors({
     origin: "*", 
