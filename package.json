@@ -5,6 +5,7 @@
     "start": "node app.js"
   },
   "dependencies": {
+    "@upstash/redis": "^1.25.0",
     "express": "latest",
     "socket.io": "latest",
     "cors": "latest",
