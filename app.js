@@ -6,7 +6,7 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 const { Redis } = require('@upstash/redis');
-
+const DEV_KEY = process.env.DEV_KEY; 
 // Разрешаем фронтенду подключаться
 app.use(express.json());
 
@@ -112,6 +112,27 @@ app.post('/delete-msg', async (req, res) => {
 
 
 
+// Маршрут для сбора статистики (БЕЗ НЕГО БУДЕТ ОШИБКА)
+app.post('/track-visit', async (req, res) => {
+    try {
+        const { page, platform, country, browser } = req.body;
+        const today = new Date().toISOString().split('T')[0];
+        const key = `stats:${today}`;
+
+        const pipeline = redis.pipeline();
+        pipeline.hincrby(key, 'total_visits', 1);
+        pipeline.hincrby(key, `page:${page || '/'}`, 1);
+        pipeline.hincrby(key, `platform:${platform || 'Unknown'}`, 1);
+        pipeline.hincrby(key, `country:${country || 'Unknown'}`, 1);
+        pipeline.hincrby(key, `browser:${browser || 'Unknown'}`, 1);
+
+        await pipeline.exec();
+        res.json({ status: "ok" });
+    } catch (err) {
+        console.error("Ошибка трекинга:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 
 
