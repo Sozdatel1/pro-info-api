@@ -92,6 +92,21 @@ app.post('/add-msg', async (req, res) => {
         res.status(500).json({error: err.message});
     }
 });
+// Роут для удаления сообщения
+app.post('/delete-msg', async (req, res) => {
+    try {
+        const { pass, msgData } = req.body;
+        if (pass !== ADMIN_PASS) return res.status(403).json({ error: "Нет доступа" });
+
+        // Удаляем именно то сообщение, которое совпадает по тексту и времени
+        // Мы превращаем объект обратно в строку, так как в Redis всё хранится строками
+        await redis.lrem('chat', 0, JSON.stringify(msgData));
+        
+        res.json({ status: "deleted" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 
 
