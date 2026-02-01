@@ -121,19 +121,18 @@ app.post('/delete-msg', async (req, res) => {
 // Маршрут для сбора статистики
 app.post('/track-visit', async (req, res) => {
     try {
-        const { page, platform } = req.body;
+        const { page, platform, coutry, browser } = req.body;
         const today = new Date().toISOString().split('T')[0]; // Формат 2026-02-01
+        const pipeline = redis.pipeline(); // Используем пайплайн для скорости
 
-        // 1. Считаем общие посещения за сегодня
-        await redis.hincrby(`stats:${today}`, 'total_visits', 1);
+        pipeline.hincrby(`stats:${today}`, 'total_visits', 1);
+        pipeline.hincrby(`stats:${today}`, `page:${page}`, 1);
+        pipeline.hincrby(`stats:${today}`, `platform:${platform}`, 1);
+        pipeline.hincrby(`stats:${today}`, `country:${country || 'Неизвестно'}`, 1);
+        pipeline.hincrby(`stats:${today}`, `browser:${browser}`, 1);
 
-        // 2. Считаем посещения конкретной страницы
-        await redis.hincrby(`stats:${today}`, `page:${page}`, 1);
-
-        // 3. Считаем типы устройств (Mobile/Desktop)
-        await redis.hincrby(`stats:${today}`, `platform:${platform}`, 1);
-
-        res.json({ status: "tracked" });
+        await pipeline.exec();
+        res.json({ status: "ok" });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
