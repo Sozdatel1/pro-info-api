@@ -112,60 +112,32 @@ app.post('/delete-msg', async (req, res) => {
 
 
 
-// Маршрут для сбора статистики (БЕЗ НЕГО БУДЕТ ОШИБКА)
-app.post('/track-visit', async (req, res) => {
+app.post('/add-reaction', async (req, res) => {
     try {
-        const { page, platform, country, browser } = req.body;
-        const today = new Date().toISOString().split('T')[0];
-        const key = `stats:${today}`;
-
-        const pipeline = redis.pipeline();
-        pipeline.hincrby(key, 'total_visits', 1);
-        pipeline.hincrby(key, `page:${page || '/'}`, 1);
-        pipeline.hincrby(key, `platform:${platform || 'Unknown'}`, 1);
-        pipeline.hincrby(key, `country:${country || 'Unknown'}`, 1);
-        pipeline.hincrby(key, `browser:${browser || 'Unknown'}`, 1);
-
-        await pipeline.exec();
-        res.json({ status: "ok" });
+        const { msgData, emoji } = req.body;
+        // 1. Получаем все сообщения
+        const msgs = await redis.lrange('chat', 0, -1);
+        
+        // 2. Ищем нужное сообщение (сравниваем текст и время)
+        const msgIndex = msgs.findIndex(m => m.text === msgData.text && m.time === msgData.time);
+        
+        if (msgIndex !== -1) {
+            let msg = msgs[msgIndex];
+            if (!msg.reactions) msg.reactions = {}; // Если реакций еще нет, создаем объект
+            
+            // Увеличиваем счетчик конкретного эмодзи
+            msg.reactions[emoji] = (msg.reactions[emoji] || 0) + 1;
+            
+            // 3. Сохраняем обновленное сообщение обратно в список по индексу
+            await redis.lset('chat', msgIndex, JSON.stringify(msg));
+            res.json({ status: "ok", reactions: msg.reactions });
+        } else {
+            res.status(404).json({ error: "Сообщение не найдено" });
+        }
     } catch (err) {
-        console.error("Ошибка трекинга:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
-
-
-
-
-
-
-// Маршрут для сбора статистики
-// Маршрут для получения статистики
-app.post('/get-stats', async (req, res) => {
-    try {
-        const { devKey } = req.body;
-        
-        // 1. Проверяем ключ
-        if (!devKey || devKey !== process.env.DEV_KEY) {
-            return res.status(403).json({ error: "Доступ запрещен" });
-        }
-        
-        // 2. Исправляем получение даты (точно берем только YYYY-MM-DD)
-        const today = new Date().toISOString().split('T')[0];
-        
-        // 3. Запрос к базе
-        const stats = await redis.hgetall(`stats:${today}`);
-        
-        // Если статистики еще нет (никто не зашел), возвращаем пустой объект, а не null
-        res.json(stats || {});
-        
-    } catch (err) {
-        console.error("Ошибка в /get-stats:", err);
-        res.status(500).json({ error: "Ошибка сервера при получении статистики" });
-    }
-});
-
-
 
 
 const PORT = process.env.PORT || 10000; // Render любит 10000 или PORT
