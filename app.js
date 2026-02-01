@@ -112,6 +112,44 @@ app.post('/delete-msg', async (req, res) => {
 
 
 
+
+
+
+
+
+
+// Маршрут для сбора статистики
+app.post('/track-visit', async (req, res) => {
+    try {
+        const { page, platform } = req.body;
+        const today = new Date().toISOString().split('T')[0]; // Формат 2026-02-01
+
+        // 1. Считаем общие посещения за сегодня
+        await redis.hincrby(`stats:${today}`, 'total_visits', 1);
+
+        // 2. Считаем посещения конкретной страницы
+        await redis.hincrby(`stats:${today}`, `page:${page}`, 1);
+
+        // 3. Считаем типы устройств (Mobile/Desktop)
+        await redis.hincrby(`stats:${today}`, `platform:${platform}`, 1);
+
+        res.json({ status: "tracked" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Маршрут для получения статистики (только для админа)
+app.post('/get-stats', async (req, res) => {
+    if (req.body.pass !== ADMIN_PASS) return res.status(403).json({ error: "Нет доступа" });
+    
+    const today = new Date().toISOString().split('T')[0];
+    const stats = await redis.hgetall(`stats:${today}`);
+    res.json(stats || {});
+});
+
+
+
 const PORT = process.env.PORT || 10000; // Render любит 10000 или PORT
 server.listen(PORT, () => {
     console.log(`🚀 Сервер запущен на порту ${PORT}`);
