@@ -140,7 +140,12 @@ app.post('/track-visit', async (req, res) => {
 
 // Маршрут для получения статистики (только для админа)
 app.post('/get-stats', async (req, res) => {
-    if (req.body.pass !== ADMIN_PASS) return res.status(403).json({ error: "Нет доступа" });
+    onst { pass, devKey } = req.body;
+    
+    // Проверка: общий пароль И твой личный секретный ключ
+    if (pass !== ADMIN_PASS || devKey !== DEV_KEY) {
+        return res.status(403).json({ error: "Доступ запрещен" });
+    }
     
     const today = new Date().toISOString().split('T')[0];
     const stats = await redis.hgetall(`stats:${today}`);
