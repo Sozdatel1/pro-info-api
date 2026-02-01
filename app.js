@@ -119,39 +119,31 @@ app.post('/delete-msg', async (req, res) => {
 
 
 // Маршрут для сбора статистики
-app.post('/track-visit', async (req, res) => {
-    try {
-        const { page, platform, country, browser } = req.body;
-        const today = new Date().toISOString().split('T')[0]; // Формат 2026-02-01
-        const pipeline = redis.pipeline(); // Используем пайплайн для скорости
-
-        pipeline.hincrby(`stats:${today}`, 'total_visits', 1);
-        pipeline.hincrby(`stats:${today}`, `page:${page}`, 1);
-        pipeline.hincrby(`stats:${today}`, `platform:${platform}`, 1);
-        pipeline.hincrby(`stats:${today}`, `country:${country || 'Неизвестно'}`, 1);
-        pipeline.hincrby(`stats:${today}`, `browser:${browser}`, 1);
-
-        await pipeline.exec();
-        res.json({ status: "ok" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-const DEV_KEY = process.env.DEV_KEY; 
-// Маршрут для получения статистики (только для админа)
+// Маршрут для получения статистики
 app.post('/get-stats', async (req, res) => {
-     const { devKey } = req.body; // Берем только ключ разработчика
-    
-    // Если ключ из запроса не совпадает с ключом в секретах Render
-    if (!devKey || devKey !== DEV_KEY) {
-        return res.status(403).json({ error: "Доступ только для Главного Разработчика" });
+    try {
+        const { devKey } = req.body;
+        
+        // 1. Проверяем ключ
+        if (!devKey || devKey !== process.env.DEV_KEY) {
+            return res.status(403).json({ error: "Доступ запрещен" });
+        }
+        
+        // 2. Исправляем получение даты (точно берем только YYYY-MM-DD)
+        const today = new Date().toISOString().split('T')[0];
+        
+        // 3. Запрос к базе
+        const stats = await redis.hgetall(`stats:${today}`);
+        
+        // Если статистики еще нет (никто не зашел), возвращаем пустой объект, а не null
+        res.json(stats || {});
+        
+    } catch (err) {
+        console.error("Ошибка в /get-stats:", err);
+        res.status(500).json({ error: "Ошибка сервера при получении статистики" });
     }
-    
-    // Если ключ верный — отдаем статистику
-    const today = new Date().toISOString().split('T')[0];
-    const stats = await redis.hgetall(`stats:${today}`);
-    res.json(stats || {});
 });
+
 
 
 
