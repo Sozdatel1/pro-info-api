@@ -79,9 +79,11 @@ app.post('/add-msg', async (req, res) => {
         if (req.body.pass !== ADMIN_PASS) return res.status(403).json({error: "Нет доступа"});
         
         const newMsg = {
-            text: req.body.text,
-            time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-        };
+    text: req.body.text,
+    // Эта строка гарантирует московское время вне зависимости от сервера
+    time: new Date().toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
+};
+
         
         // Сохраняем в начало списка
         await redis.lpush('chat', newMsg);
