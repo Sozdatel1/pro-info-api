@@ -137,16 +137,17 @@ app.post('/track-visit', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
+const DEV_KEY = process.env.DEV_KEY; 
 // Маршрут для получения статистики (только для админа)
 app.post('/get-stats', async (req, res) => {
-    onst { pass, devKey } = req.body;
+     const { devKey } = req.body; // Берем только ключ разработчика
     
-    // Проверка: общий пароль И твой личный секретный ключ
-    if (pass !== ADMIN_PASS || devKey !== DEV_KEY) {
-        return res.status(403).json({ error: "Доступ запрещен" });
+    // Если ключ из запроса не совпадает с ключом в секретах Render
+    if (!devKey || devKey !== DEV_KEY) {
+        return res.status(403).json({ error: "Доступ только для Главного Разработчика" });
     }
     
+    // Если ключ верный — отдаем статистику
     const today = new Date().toISOString().split('T')[0];
     const stats = await redis.hgetall(`stats:${today}`);
     res.json(stats || {});
