@@ -80,12 +80,12 @@ app.post('/add-msg', async (req, res) => {
         if (req.body.pass !== ADMIN_PASS) return res.status(403).json({error: "Нет доступа"});
         
         const newMsg = {
-             id: Date.now() + Math.random().toString(36).substr(2, 9),
+             
     text: req.body.text,
     author: author || "Аноним", 
     // Эта строка гарантирует московское время вне зависимости от сервера
     time: new Date().toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit' })
-   reactions: {}
+  
         };
 
         
@@ -114,28 +114,6 @@ app.post('/delete-msg', async (req, res) => {
 
 
 
-app.post('/add-reaction', async (req, res) => {
-    const { msgId, emoji, type } = req.body; // type: 'add' или 'remove'
-    const msgs = await redis.lrange('chat', 0, -1);
-    const idx = msgs.findIndex(m => m.id === msgId);
-
-    if (idx !== -1) {
-        let msg = msgs[idx];
-        if (!msg.reactions) msg.reactions = {};
-        
-        if (type === 'add') {
-            msg.reactions[emoji] = (msg.reactions[emoji] || 0) + 1;
-        } else {
-            msg.reactions[emoji] = Math.max(0, (msg.reactions[emoji] || 0) - 1);
-            if (msg.reactions[emoji] === 0) delete msg.reactions[emoji];
-        }
-
-        await redis.lset('chat', idx, JSON.stringify(msg));
-        res.json({ status: "ok" });
-    } else {
-        res.status(404).send("Не найдено");
-    }
-});
 
 
 const PORT = process.env.PORT || 10000; // Render любит 10000 или PORT
