@@ -121,7 +121,7 @@ app.post('/delete-msg', async (req, res) => {
 // Маршрут для сбора статистики
 app.post('/track-visit', async (req, res) => {
     try {
-        const { page, platform, coutry, browser } = req.body;
+        const { page, platform, country, browser } = req.body;
         const today = new Date().toISOString().split('T')[0]; // Формат 2026-02-01
         const pipeline = redis.pipeline(); // Используем пайплайн для скорости
 
