@@ -5,7 +5,7 @@ const cors = require('cors');
 const axios = require('axios');
 const app = express();
 const { Hercai } = require('hercai'); 
-const herc = new Hercai(); 
+const herc = new Hercai({}); // Добавь скобки внутри!
 app.use(express.json());
 const { Redis } = require('@upstash/redis');
 const DEV_KEY = process.env.DEV_KEY; 
