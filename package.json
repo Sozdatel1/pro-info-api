@@ -11,6 +11,6 @@
     "socket.io": "latest",
     "cors": "latest",
     "axios": "^1.6.0",
-    "gpts": "latest"
+    "hercai": "latest"
   }
 }
