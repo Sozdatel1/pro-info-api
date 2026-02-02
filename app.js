@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const axios = require('axios');
 const app = express();
+const { Hercai } = require('hercai'); 
 app.use(express.json());
 const { Redis } = require('@upstash/redis');
 const DEV_KEY = process.env.DEV_KEY; 
@@ -116,28 +117,22 @@ app.post('/delete-msg', async (req, res) => {
 
 
 
-import gpts from 'gpts';
-const { ChatGPT } = gpts;
-
-
-app.use(cors());
-app.use(express.json());
-
-const bot = new ChatGPT();
-
 app.post('/ask', async (req, res) => {
   try {
     const { message } = req.body;
     
-    // Бесплатный запрос к нейросети
-    const response = await bot.ask(message);
+    if (!message) return res.status(400).json({ error: "Напиши что-нибудь!" });
+
+    // Модель 'v3' — самая мощная из бесплатных
+    const response = await herc.question({ model: "v3", content: message });
     
-    res.json({ text: response });
+    // Возвращаем ответ фронтенду
+    res.json({ text: response.reply });
   } catch (error) {
-    res.status(500).json({ error: "Бот перегружен, попробуй позже" });
+    console.error("Ошибка Hercai:", error);
+    res.status(500).json({ error: "Я задумался, попробуй позже 🤖" });
   }
 });
-
 
 
 const PORT = process.env.PORT || 10000; // Render любит 10000 или PORT
