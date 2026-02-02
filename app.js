@@ -119,7 +119,7 @@ import express from 'express';
 import cors from 'cors';
 import { ChatGPT } from 'gpts'; // Бесплатный доступ
 
-const app = express();
+
 app.use(cors());
 app.use(express.json());
 
