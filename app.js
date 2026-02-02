@@ -117,35 +117,26 @@ app.post('/delete-msg', async (req, res) => {
 
 import express from 'express';
 import cors from 'cors';
-import OpenAI from 'openai';
-import 'dotenv/config';
+import { ChatGPT } from 'gpts'; // Бесплатный доступ
 
 const app = express();
- // Разрешаем запросы с твоего Vercel
+app.use(cors());
+app.use(express.json());
 
-
-const openai = new OpenAI({
-  apiKey: process.env.AI_KEY // Ключ храни в настройках Render!
-});
+const bot = new ChatGPT();
 
 app.post('/ask', async (req, res) => {
   try {
     const { message } = req.body;
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Дешевая и быстрая модель
-      messages: [
-        { role: "system", content: "Ты — веселый ИИ-помощник на сайте молодого разработчика. Отвечай кратко и с эмодзи!" },
-        { role: "user", content: message }
-      ],
-    });
-
-    res.json({ text: completion.choices[0].message.content });
+    
+    // Бесплатный запрос к нейросети
+    const response = await bot.ask(message);
+    
+    res.json({ text: response });
   } catch (error) {
-    res.status(500).json({ error: "Что-то пошло не так" });
+    res.status(500).json({ error: "Бот перегружен, попробуй позже" });
   }
 });
-
 
 
 
