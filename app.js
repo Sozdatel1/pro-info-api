@@ -14,8 +14,22 @@ app.use(express.json());
 
 // 1. Настройка CORS для Express
 app.use(cors({
-    origin: "*", 
-    methods: ["GET", "POST"]
+    origin: (origin, callback) => {
+        // Список разрешенных адресов
+        const allowed = [
+            'https://pro-info.vercel.app', 
+            'http://127.0.0.1:5500', 
+            'http://localhost:5500'
+        ];
+        // Разрешаем, если адрес в списке или если это локальный запрос без origin
+        if (!origin || allowed.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('CORS blocked this request'));
+        }
+    },
+    methods: ["GET", "POST"],
+    credentials: true // ЭТО ВАЖНО: позволяет принимать куки
 }));
 
 // 2. Ответ для главной страницы
@@ -125,10 +139,7 @@ app.post('/delete-msg', async (req, res) => {
 
 
 // Настройка CORS для работы с Cookie
-app.use(cors({ 
-    origin: 'https://pro-info.vercel.app', 
-    credentials: true 
-}));
+
 
 const ADMIN_HOME = process.env.ADMIN_HOME;
 
