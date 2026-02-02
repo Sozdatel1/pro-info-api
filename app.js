@@ -118,24 +118,46 @@ app.post('/delete-msg', async (req, res) => {
 
 
 
-app.post('/ask', async (req, res) => {
-  try {
-    const userMessage = req.body.message;
-    
-    // В новых версиях Hercai метод может называться 'question' 
-    // но вызываться вот так:
-    const response = await herc.question("v3", userMessage); 
-    
-    // В этой версии ответ часто лежит прямо в reply или это просто строка
-    const replyText = response.reply || response;
 
-    res.json({ text: replyText });
 
-  } catch (error) {
-    console.error("ОШИБКА:", error);
-    res.status(500).json({ text: "Ошибка в коде бота. Пробую исправить..." });
-  }
+
+
+
+
+// Настройка CORS для работы с Cookie
+app.use(cors({ 
+    origin: 'https://pro-info.vercel.app', 
+    credentials: true 
+}));
+
+const ADMIN_HOME = process.env.ADMIN_HOME;
+
+app.post('/api/login', (req, res) => {
+    if (req.body.password === ADMIN_HOME) {
+        // Устанавливаем куку, которая будет жить 1 день
+        res.cookie('access_pass', ADMIN_HOME, {
+            maxAge: 86400000, // 24 часа
+            httpOnly: false,  // Чтобы JS на фронте мог её прочитать (для простоты)
+            secure: true,     // Обязательно для Render (HTTPS)
+            sameSite: 'none'  // Обязательно для разных доменов (Vercel -> Render)
+        });
+        return res.json({ success: true });
+    }
+    res.status(401).json({ success: false });
 });
+
+// Проверка доступа
+app.get('/api/check', (req, res) => {
+    // В реальном мире тут проверяется ТОКЕН, но раз просил только ПАРОЛЬ:
+    if (req.headers.cookie?.includes(`access_pass=${ADMIN_HOME}`)) {
+        res.json({ authorized: true, data: "Твои секреты здесь" });
+    } else {
+        res.status(401).json({ authorized: false });
+    }
+});
+
+
+
 
 
 
