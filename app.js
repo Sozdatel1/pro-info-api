@@ -116,7 +116,8 @@ app.post('/delete-msg', async (req, res) => {
 
 
 
-import { ChatGPT } from 'gpts'; // Бесплатный доступ
+import gpts from 'gpts';
+const { ChatGPT } = gpts;
 
 
 app.use(cors());
