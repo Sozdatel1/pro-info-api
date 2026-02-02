@@ -115,6 +115,39 @@ app.post('/delete-msg', async (req, res) => {
 
 
 
+import express from 'express';
+import cors from 'cors';
+import OpenAI from 'openai';
+import 'dotenv/config';
+
+const app = express();
+ // Разрешаем запросы с твоего Vercel
+
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_KEY // Ключ храни в настройках Render!
+});
+
+app.post('/ask', async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Дешевая и быстрая модель
+      messages: [
+        { role: "system", content: "Ты — веселый ИИ-помощник на сайте молодого разработчика. Отвечай кратко и с эмодзи!" },
+        { role: "user", content: message }
+      ],
+    });
+
+    res.json({ text: completion.choices[0].message.content });
+  } catch (error) {
+    res.status(500).json({ error: "Что-то пошло не так" });
+  }
+});
+
+
+
 
 const PORT = process.env.PORT || 10000; // Render любит 10000 или PORT
 server.listen(PORT, () => {
