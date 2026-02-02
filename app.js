@@ -120,20 +120,23 @@ app.post('/delete-msg', async (req, res) => {
 
 app.post('/ask', async (req, res) => {
   try {
-    const { message } = req.body;
+    const userMessage = req.body.message;
     
-    if (!message) return res.status(400).json({ error: "Напиши что-нибудь!" });
+    // В новых версиях Hercai метод может называться 'question' 
+    // но вызываться вот так:
+    const response = await herc.question("v3", userMessage); 
+    
+    // В этой версии ответ часто лежит прямо в reply или это просто строка
+    const replyText = response.reply || response;
 
-    // Модель 'v3' — самая мощная из бесплатных
-    const response = await herc.question({ model: "v3", content: message });
-    
-    // Возвращаем ответ фронтенду
-    res.json({ text: response.reply });
+    res.json({ text: replyText });
+
   } catch (error) {
-    console.error("Ошибка Hercai:", error);
-    res.status(500).json({ error: "Я задумался, попробуй позже 🤖" });
+    console.error("ОШИБКА:", error);
+    res.status(500).json({ text: "Ошибка в коде бота. Пробую исправить..." });
   }
 });
+
 
 
 const PORT = process.env.PORT || 10000; // Render любит 10000 или PORT
