@@ -30,6 +30,7 @@ app.use(cors({
     },
     methods: ["GET", "POST"],
     credentials: true // ЭТО ВАЖНО: позволяет принимать куки
+    
 }));
 
 // 2. Ответ для главной страницы
@@ -183,6 +184,15 @@ app.post('/api/admin/toggle-maintenance', (req, res) => {
 // Публичный роут для проверки статуса
 app.get('/api/public/status', (req, res) => {
     res.json({ isMaintenance });
+});
+
+
+app.get('/api/logout', (req, res) => {
+    res.clearCookie('access_pass', {
+        secure: true,
+        sameSite: 'none'
+    });
+    res.json({ success: true });
 });
 
 
