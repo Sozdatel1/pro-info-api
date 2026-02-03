@@ -162,7 +162,7 @@ app.post('/api/login', (req, res) => {
 app.get('/api/check', (req, res) => {
     // В реальном мире тут проверяется ТОКЕН, но раз просил только ПАРОЛЬ:
     if (req.headers.cookie?.includes(`access_pass=${ADMIN_HOME}`)) {
-        res.json({ authorized: true, data: "Твои секреты здесь" });
+        res.json({ authorized: true, data: "Добро пожаловать в ваш кабинет!" });
     } else {
         res.status(401).json({ authorized: false });
     }
