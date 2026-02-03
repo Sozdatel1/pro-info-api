@@ -172,7 +172,7 @@ app.get('/api/check', (req, res) => {
 let pagesStatus = {
     global: false,      // Общий рубильник (весь сайт)
     '/index.html': false,
-    '/about.html': false,
+    '/second.html': false,
     '/contacts.html': false
     // и так далее для всех 8 страниц
 };
