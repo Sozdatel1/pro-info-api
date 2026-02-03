@@ -169,13 +169,22 @@ app.get('/api/check', (req, res) => {
 });
 
 
-let isMaintenance = false; // По умолчанию сайт работает
+let pagesStatus = {
+    global: false,      // Общий рубильник (весь сайт)
+    '/index.html': false,
+    '/about.html': false,
+    '/contacts.html': false
+    // и так далее для всех 8 страниц
+};
 
-// Включить/выключить режим (только через админку)
-app.post('/api/admin/toggle-maintenance', (req, res) => {
+// Универсальный роут для переключения
+app.post('/api/admin/toggle-page', (req, res) => {
     if (req.headers.cookie?.includes(`access_pass=${ADMIN_HOME}`)) {
-        isMaintenance = req.body.status; 
-        res.json({ success: true, isMaintenance });
+        const { path, status } = req.body; // Получаем путь (например 'global' или '/about.html')
+        
+        pagesStatus[path] = status;
+        
+        res.json({ success: true, pagesStatus });
     } else {
         res.status(403).send("No access");
     }
