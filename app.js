@@ -13,25 +13,31 @@ const DEV_KEY = process.env.DEV_KEY;
 app.use(express.json());
 
 // 1. Настройка CORS для Express
+// На Render в app.js (примерно 28 строка)
+const allowedOrigins = [
+    'https://pro-info.vercel.app',
+    'http://127.0.0.1:5500',
+    'http://localhost:5500'
+];
+
 app.use(cors({
-    origin: (origin, callback) => {
-        // Список разрешенных адресов
-        const allowed = [
-            'https://pro-info.vercel.app', 
-            'http://127.0.0.1:5500', 
-            'http://localhost:5500'
-        ];
-        // Разрешаем, если адрес в списке или если это локальный запрос без origin
-        if (!origin || allowed.includes(origin)) {
+    origin: function (origin, callback) {
+        // Логируем для отладки
+        console.log("Пришел запрос с Origin:", origin);
+
+        // Разрешаем, если адреса нет (например, серверные запросы) или он в списке
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.error("CORS отклонил запрос с:", origin);
             callback(new Error('CORS blocked this request'));
         }
     },
-    methods: ["GET", "POST"],
-    credentials: true // ЭТО ВАЖНО: позволяет принимать куки
-    
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 
 // 2. Ответ для главной страницы
 app.get('/', (req, res) => {
