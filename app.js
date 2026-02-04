@@ -179,7 +179,11 @@ let pagesStatus = {
     global: false,      // Общий рубильник (весь сайт)
     '/index.html': false,
     '/second.html': false,
-    '/contacts.html': false
+    '/two page.html': false,
+    '/carta.html': false,
+    '/fact.html': false,
+    '/holiday.html': false,
+    '/second.html': false,why
     // и так далее для всех 8 страниц
 };
 
