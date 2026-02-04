@@ -183,7 +183,7 @@ let pagesStatus = {
     '/carta.html': false,
     '/fact.html': false,
     '/holiday.html': false,
-    '/second.html': false,why
+    '/why.html': false,
     // и так далее для всех 8 страниц
 };
 
