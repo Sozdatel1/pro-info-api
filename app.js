@@ -192,7 +192,7 @@ app.post('/api/admin/toggle-page', (req, res) => {
 
 // Публичный роут для проверки статуса
 app.get('/api/public/status', (req, res) => {
-    res.json(pagesStatus)}); 
+    res.json(pagesStatus); 
 });
 
 
