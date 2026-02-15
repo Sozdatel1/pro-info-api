@@ -226,8 +226,6 @@ const fs = require('fs');
 const path = require('path');
 
 
-app.use(cors()); // Чтобы Vercel мог брать данные
-const PORT = process.env.PORT || 10000;
 
 // 1. ПОДКЛЮЧЕНИЕ К БАЗЕ (Ссылку DATABASE_URL вставь в настройки Render!)
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
