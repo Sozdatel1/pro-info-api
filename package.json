@@ -11,6 +11,6 @@
     "socket.io": "latest",
     "cors": "latest",
     "axios": "^1.6.0",
-    "hercai": "latest"
+    "sequelize": "^6.33.0"
   }
 }
