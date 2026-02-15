@@ -220,23 +220,7 @@ app.get('/api/logout', (req, res) => {
 
 
 
-
-
-// Исправляем блок запуска в самом низу файла:
-const PORT = process.env.PORT || 10000;
-
-async function startServer() {
-    try {
-        // ЭТО САМОЕ ВАЖНОЕ: создает таблицу в Supabase, если её нет
-        await sequelize.sync({ alter: true }); 
-        console.log('✅ База Supabase готова, таблицы проверены!');
-
-        server.listen(PORT, () => {
-            console.log(`🚀 Сервер запущен на порту ${PORT}`);
-        });
-    } catch (err) {
-        console.error('❌ Ошибка запуска базы:', err);
-    }
-}
-
-startServer();
+const PORT = process.env.PORT || 10000; // Render любит 10000 или PORT
+server.listen(PORT, () => {
+    console.log(`🚀 Сервер запущен на порту ${PORT}`);
+});
