@@ -225,7 +225,7 @@ const { Sequelize, DataTypes } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 
-const app = express();
+
 app.use(cors()); // Чтобы Vercel мог брать данные
 const PORT = process.env.PORT || 10000;
 
