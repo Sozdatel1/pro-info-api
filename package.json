@@ -12,6 +12,6 @@
     "cors": "latest",
     "axios": "^1.6.0",
     "sequelize": "^6.33.0",
-    "hercai": "*", 
+    "hercai": "*"
   }
 }
