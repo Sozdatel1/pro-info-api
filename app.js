@@ -219,7 +219,7 @@ app.get('/api/logout', (req, res) => {
 
 
 
-const express = require('express');
+
 const { Sequelize, DataTypes } = require('sequelize');
 const cors = require('cors');
 const fs = require('fs');
