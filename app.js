@@ -215,64 +215,7 @@ app.get('/api/logout', (req, res) => {
 
 
 
-const bodyParser = require('body-parser');
-const { createClient } = require('@supabase/supabase-js');
 
-const app = express();
-app.use(cors({ origin: true }));
-app.use(bodyParser.json());
-
-const supabaseUrl = 'https://your-project.supabase.co'; // вставь свой URL
-const supabaseKey = 'public-anonymous-key'; // вставь свой API ключ
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Регистрация
-app.post('/register', async (req, res) => {
-    const { email, password } = req.body;
-    const { user, error } = await supabase.auth.signUp({ email, password });
-    if (error) return res.status(400).json({ error: error.message });
-    res.json({ user });
-});
-
-// Вход
-app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    const { session, error } = await supabase.auth.signIn({ email, password });
-    if (error) return res.status(400).json({ error: error.message });
-    res.json({ session });
-});
-
-// Проверка токена (авторизация для публикации и получения статей)
-const verifyToken = async (token) => {
-    const { data, error } = await supabase.auth.getUser(token);
-    if (error || !data) return null;
-    return data.user;
-};
-
-// Публикация статьи (требует авторизации)
-app.post('/articles', async (req, res) => {
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.replace('Bearer ', '');
-    const user = await verifyToken(token);
-    if (!user) return res.status(401).json({ error: 'Неавторизован' });
-
-    const { title, content } = req.body;
-    const { data, error } = await supabase
-        .from('articles')
-        .insert([{ author: user.email, title, content }]);
-    if (error) return res.status(400).json({ error: error.message });
-    res.json({ article: data[0] });
-});
-
-// Получение всех статей
-app.get('/articles', async (req, res) => {
-    const { data, error } = await supabase
-        .from('articles')
-        .select('*')
-        .order('created_at', { ascending: false });
-    if (error) return res.status(400).json({ error: error.message });
-    res.json({ articles: data });
-});
 
 
 
