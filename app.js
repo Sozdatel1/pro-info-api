@@ -5,7 +5,7 @@ const cors = require('cors');
 const axios = require('axios');
 const app = express();
 
-app.use(express.json());
+
 const { Redis } = require('@upstash/redis');
 const DEV_KEY = process.env.DEV_KEY; 
 // Разрешаем фронтенду подключаться
@@ -36,7 +36,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
+app.use(express.json());
 
 // 2. Ответ для главной страницы
 app.get('/', (req, res) => {
