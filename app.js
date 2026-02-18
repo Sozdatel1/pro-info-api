@@ -241,7 +241,7 @@ app.post('/publish', async (req, res) => {
             id: Date.now(), 
             title: title, 
             text: text, 
-            image: image || "/img/лапша.jpg", // Если картинки нет, ставим дефолт
+            image: image, // Если картинки нет, ставим дефолт
             date: new Date().toLocaleString() 
         });
 
