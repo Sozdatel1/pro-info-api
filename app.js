@@ -222,26 +222,38 @@ const REPO = "Sozdatel1/PRO-info";
 const PATH = "posts.json";
 
 app.post('/publish', async (req, res) => {
-    const { text } = req.body;
-    if (!text) return res.status(400).send("No text provided");
+    // 1. Забираем все три поля
+    const { title, text, image } = req.body; 
+    
+    // Проверка: заголовок и текст обязательны
+    if (!title || !text) return res.status(400).send("Title and text are required");
 
     try {
-        // 1. Получаем SHA текущего файла
         const getFile = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
             headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
         });
         const fileData = await getFile.json();
 
-        // 2. Декодируем и добавляем пост
         let posts = JSON.parse(Buffer.from(fileData.content, 'base64').toString());
-        posts.unshift({ id: Date.now(), text: text, date: new Date().toLocaleString() });
+
+        // 2. ИСПРАВЛЕНО: Добавляем объект со всеми полями
+        posts.unshift({ 
+            id: Date.now(), 
+            title: title, 
+            text: text, 
+            image: image || "/img/лапша.jpg", // Если картинки нет, ставим дефолт
+            date: new Date().toLocaleString() 
+        });
 
         // 3. Пушим обратно
         const update = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
             method: 'PUT',
-            headers: { 'Authorization': `token ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+            headers: { 
+                'Authorization': `token ${GITHUB_TOKEN}`, 
+                'Content-Type': 'application/json' 
+            },
             body: JSON.stringify({
-                message: "New post via Pro-Info API",
+                message: `New article: ${title}`,
                 content: Buffer.from(JSON.stringify(posts, null, 2)).toString('base64'),
                 sha: fileData.sha
             })
