@@ -266,44 +266,67 @@ app.post('/publish', async (req, res) => {
     }
 });
 
+
+
+// Очередь для синхронизации записи
+let writeQueue = Promise.resolve();
+
 app.post('/like/:id', async (req, res) => {
     const { id } = req.params;
 
-    try {
-        const getFile = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
-            headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-        });
-        const fileData = await getFile.json();
-        let posts = JSON.parse(Buffer.from(fileData.content, 'base64').toString());
+    // Цепляем новый процесс к хвосту очереди
+    writeQueue = writeQueue.then(async () => {
+        try {
+            // ИСПРАВЛЕНО: Добавлен /repos/ и правильные слеши
+            const getFile = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
+                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+            });
 
-        // Находим пост и прибавляем лайк
-        const post = posts.find(p => p.id == id);
-        if (post) {
+            if (!getFile.ok) throw new Error("Failed to fetch file from GitHub");
+            
+            const fileData = await getFile.json();
+            const posts = JSON.parse(Buffer.from(fileData.content, 'base64').toString());
+
+            const post = posts.find(p => p.id == id);
+            if (!post) {
+                // Используем return, чтобы выйти из функции внутри then
+                res.status(404).json({ error: "Post not found" });
+                return;
+            }
+            
             post.likes = (post.likes || 0) + 1;
-        } else {
-            return res.status(404).send("Post not found");
+
+            const update = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
+                method: 'PUT',
+                headers: { 
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({
+                    message: `Like post ${id}`,
+                    content: Buffer.from(JSON.stringify(posts, null, 2)).toString('base64'),
+                    sha: fileData.sha 
+                })
+            });
+
+            if (update.ok) {
+                res.json({ success: true, likes: post.likes });
+            } else {
+                const errorLog = await update.json();
+                console.error("GitHub API Error:", errorLog);
+                res.status(500).json({ success: false, message: "GitHub Save Error" });
+            }
+        } catch (err) {
+            console.error("Queue Error:", err);
+            if (!res.headersSent) res.status(500).json({ error: err.message });
         }
-
-        // Сохраняем обратно на GitHub
-        const update = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
-            method: 'PUT',
-            headers: { 
-                'Authorization': `token ${GITHUB_TOKEN}`, 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({
-                message: `Like post ${id}`,
-                content: Buffer.from(JSON.stringify(posts, null, 2)).toString('base64'),
-                sha: fileData.sha
-            })
-        });
-
-        if (update.ok) res.send({ success: true, likes: post.likes });
-        else res.status(500).send("GitHub Error");
-    } catch (err) {
-        res.status(500).send(err.message);
-    }
+    }).catch(err => {
+        // Этот catch гарантирует, что если один лайк сломается, 
+        // очередь НЕ заблокируется для следующих лайков
+        console.error("Fatal Queue Crash:", err);
+    });
 });
+
 
 
 
