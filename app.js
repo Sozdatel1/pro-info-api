@@ -266,6 +266,45 @@ app.post('/publish', async (req, res) => {
     }
 });
 
+app.post('/like/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const getFile = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
+            headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+        });
+        const fileData = await getFile.json();
+        let posts = JSON.parse(Buffer.from(fileData.content, 'base64').toString());
+
+        // Находим пост и прибавляем лайк
+        const post = posts.find(p => p.id == id);
+        if (post) {
+            post.likes = (post.likes || 0) + 1;
+        } else {
+            return res.status(404).send("Post not found");
+        }
+
+        // Сохраняем обратно на GitHub
+        const update = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `token ${GITHUB_TOKEN}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+                message: `Like post ${id}`,
+                content: Buffer.from(JSON.stringify(posts, null, 2)).toString('base64'),
+                sha: fileData.sha
+            })
+        });
+
+        if (update.ok) res.send({ success: true, likes: post.likes });
+        else res.status(500).send("GitHub Error");
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+});
+
 
 
 
