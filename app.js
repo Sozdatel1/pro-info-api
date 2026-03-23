@@ -217,10 +217,111 @@ app.get('/api/logout', (req, res) => {
 
 
 
+const { createClient } = require('@supabase/supabase-js');
+const supabaseUrl = 'https://YOUR_PROJECT.supabase.co'; // замените на свой URL
+const supabaseKey = 'YOUR_PUBLIC_ANON_KEY'; // замените на свой ключ
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
 const REPO = "Sozdatel1/PRO-info";
 const PATH = "posts.json";
+
+
+app.post('/publish', async (req, res) => {
+  const { title, text, image } = req.body;
+  if (!title || !text) return res.status(400).send("Title and text are required");
+
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .insert([{
+        id: crypto.randomUUID(), // или используйте автоинкрементное поле
+        title,
+        text,
+        image: image || "/img/staty/газета.png",
+        likes: 0,
+        date: new Date().toISOString()
+      }]);
+    if (error) throw error;
+
+    res.send({ success: true, post: data[0] });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// 2. Загрузка всех постов (/loadPosts)
+app.get('/loadPosts', async (req, res) => {
+  try {
+    const { data: allPostsData, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('date', { ascending: false });
+    if (error) throw error;
+
+    res.json(allPostsData);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// 3. Загрузка конкретной статьи (/loadFullArticle?id=ID)
+app.get('/loadFullArticle', async (req, res) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).send("ID is required");
+
+  try {
+    const { data: article, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error || !article) return res.status(404).send("Post not found");
+
+    res.json(article);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// 4. Лайки - увеличение лайков (/like/:id)
+app.post('/like/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Получить текущие лайки
+    const { data: post, error } = await supabase
+      .from('posts')
+      .select('likes')
+      .eq('id', id)
+      .single();
+
+    if (error || !post) return res.status(404).json({ error: 'Post not found' });
+
+    // Обновить лайки
+    const { data: updatedPost, error: updateError } = await supabase
+      .from('posts')
+      .update({ likes: (post.likes || 0) + 1 })
+      .eq('id', id);
+    if (updateError) throw updateError;
+
+    res.json({ success: true, likes: updatedPost.likes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
 
 app.post('/publish', async (req, res) => {
     // 1. Забираем все три поля
