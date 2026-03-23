@@ -218,8 +218,8 @@ app.get('/api/logout', (req, res) => {
 
 
 const { createClient } = require('@supabase/supabase-js');
-const supabaseUrl = 'https://YOUR_PROJECT.supabase.co'; // замените на свой URL
-const supabaseKey = 'YOUR_PUBLIC_ANON_KEY'; // замените на свой ключ
+const supabaseUrl = 'https://nwopcdkydnuudovkgvxs.supabase.co'; // замените на свой URL
+const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
@@ -233,7 +233,7 @@ app.post('/publish', async (req, res) => {
 
   try {
     const { data, error } = await supabase
-      .from('posts')
+      .from('articles')
       .insert([{
         id: crypto.randomUUID(), // или используйте автоинкрементное поле
         title,
@@ -254,7 +254,7 @@ app.post('/publish', async (req, res) => {
 app.get('/loadPosts', async (req, res) => {
   try {
     const { data: allPostsData, error } = await supabase
-      .from('posts')
+      .from('')
       .select('*')
       .order('date', { ascending: false });
     if (error) throw error;
@@ -272,7 +272,7 @@ app.get('/loadFullArticle', async (req, res) => {
 
   try {
     const { data: article, error } = await supabase
-      .from('posts')
+      .from('articles')
       .select('*')
       .eq('id', id)
       .single();
@@ -291,7 +291,7 @@ app.post('/like/:id', async (req, res) => {
   try {
     // Получить текущие лайки
     const { data: post, error } = await supabase
-      .from('posts')
+      .from('articles')
       .select('likes')
       .eq('id', id)
       .single();
