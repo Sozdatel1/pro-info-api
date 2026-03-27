@@ -221,7 +221,7 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = 'https://nwopcdkydnuudovkgvxs.supabase.co'; // замените на свой URL
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
-
+const crypto = require('crypto');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
 const REPO = "Sozdatel1/PRO-info";
 const PATH = "posts.json";
@@ -235,18 +235,19 @@ app.post('/publish', async (req, res) => {
     const { data, error } = await supabase
       .from('articles')
       .insert([{
-        id: crypto.randomUUID(), // или используйте автоинкрементное поле
+        id: Date.now(),  // или используйте автоинкрементное поле
         title,
         text,
         image: image || "/img/staty/газета.png",
         likes: 0,
         date: new Date().toISOString()
-      }]);
+      }])
+      .select();
     if (error) throw error;
 
-    res.send({ success: true, post: data[0] });
+    res.json({ success: true, post: data[0] });
   } catch (err) {
-    res.status(500).send(err.message);
+    res.status(500).json({ error: err.message })
   }
 });
 
@@ -254,14 +255,14 @@ app.post('/publish', async (req, res) => {
 app.get('/loadPosts', async (req, res) => {
   try {
     const { data: allPostsData, error } = await supabase
-      .from('')
+      .from('articles')
       .select('*')
       .order('date', { ascending: false });
     if (error) throw error;
 
     res.json(allPostsData);
   } catch (err) {
-    res.status(500).send(err.message);
+    res.status(500).json({ error: err.message })
   }
 });
 
@@ -274,13 +275,13 @@ app.get('/loadFullArticle', async (req, res) => {
     const { data: article, error } = await supabase
       .from('articles')
       .select('*')
-      .eq('id', id)
+      .eq('id', id, Number(id))
       .single();
     if (error || !article) return res.status(404).send("Post not found");
 
     res.json(article);
   } catch (err) {
-    res.status(500).send(err.message);
+    res.status(500).json({ error: err.message })
   }
 });
 
@@ -300,9 +301,11 @@ app.post('/like/:id', async (req, res) => {
 
     // Обновить лайки
     const { data: updatedPost, error: updateError } = await supabase
-      .from('posts')
+      .from('articles')
       .update({ likes: (post.likes || 0) + 1 })
-      .eq('id', id);
+      .eq('id', id)
+      .select()
+      .single();
     if (updateError) throw updateError;
 
     res.json({ success: true, likes: updatedPost.likes });
