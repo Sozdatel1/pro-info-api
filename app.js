@@ -217,110 +217,133 @@ app.get('/api/logout', (req, res) => {
 
 
 
-const { createClient } = require('@supabase/supabase-js');
-const supabaseUrl = 'https://nwopcdkydnuudovkgvxs.supabase.co'; // замените на свой URL
-const supabaseKey = process.env.SUPABASE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// const { createClient } = require('@supabase/supabase-js');
+// const supabaseUrl = 'https://nwopcdkydnuudovkgvxs.supabase.co'; // замените на свой URL
+// const supabaseKey = process.env.SUPABASE_KEY;
+// const supabase = createClient(supabaseUrl, supabaseKey);
 const crypto = require('crypto');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
 const REPO = "Sozdatel1/PRO-info";
 const PATH = "posts.json";
 
 
-app.post('/publish', async (req, res) => {
-  const { title, text, image } = req.body;
-  if (!title || !text) return res.status(400).send("Title and text are required");
+// app.post('/publish', async (req, res) => {
+//   const { title, text, image } = req.body;
+//   if (!title || !text) return res.status(400).send("Title and text are required");
+
+//   try {
+//     const { data, error } = await supabase
+//       .from('articles')
+//       .insert([{
+//         id: Date.now(),  // или используйте автоинкрементное поле
+//         title,
+//         text,
+//         image: image || "/img/staty/газета.png",
+//         likes: 0,
+//         date: new Date().toISOString()
+//       }])
+//       .select();
+//     if (error) throw error;
+
+//     res.json({ success: true, post: data[0] });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message })
+//   }
+// });
+
+// // 2. Загрузка всех постов (/loadPosts)
+// app.get('/loadPosts', async (req, res) => {
+//   try {
+//     const { data: allPostsData, error } = await supabase
+//       .from('articles')
+//       .select('*')
+//       .order('date', { ascending: false });
+//     if (error) throw error;
+
+//     res.json(allPostsData);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message })
+//   }
+// });
+
+// // 3. Загрузка конкретной статьи (/loadFullArticle?id=ID)
+// app.get('/loadFullArticle', async (req, res) => {
+//   const { id } = req.query;
+//   if (!id) return res.status(400).send("ID is required");
+
+//   try {
+//     const { data: article, error } = await supabase
+//       .from('articles')
+//       .select('*')
+//       .eq('id', id, Number(id))
+//       .single();
+//     if (error || !article) return res.status(404).send("Post not found");
+
+//     res.json(article);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message })
+//   }
+// });
+
+// // 4. Лайки - увеличение лайков (/like/:id)
+// app.post('/like/:id', async (req, res) => {
+//   const { id } = req.params;
+
+//   try {
+//     // Получить текущие лайки
+//     const { data: post, error } = await supabase
+//       .from('articles')
+//       .select('likes')
+//       .eq('id', id)
+//       .single();
+
+//     if (error || !post) return res.status(404).json({ error: 'Post not found' });
+
+//     // Обновить лайки
+//     const { data: updatedPost, error: updateError } = await supabase
+//       .from('articles')
+//       .update({ likes: (post.likes || 0) + 1 })
+//       .eq('id', id)
+//       .select()
+//       .single();
+//     if (updateError) throw updateError;
+
+//     res.json({ success: true, likes: updatedPost.likes });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
+
+
+
+
+
+
+
+const supabase = createClient(
+  'https://nwopcdkydnuudovkgvxs.supabase.co', 
+  process.env.SUPABASE_KEY
+);
+
+app.post('/api/delete-user', async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
 
   try {
-    const { data, error } = await supabase
-      .from('articles')
-      .insert([{
-        id: Date.now(),  // или используйте автоинкрементное поле
-        title,
-        text,
-        image: image || "/img/staty/газета.png",
-        likes: 0,
-        date: new Date().toISOString()
-      }])
-      .select();
+    // Удаляем пользователя. Статьи удалятся автоматически благодаря связи Cascade
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+
     if (error) throw error;
 
-    res.json({ success: true, post: data[0] });
+    return res.json({ success: true, message: 'Пользователь удален' });
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    return res.status(500).json({ error: err.message });
   }
 });
-
-// 2. Загрузка всех постов (/loadPosts)
-app.get('/loadPosts', async (req, res) => {
-  try {
-    const { data: allPostsData, error } = await supabase
-      .from('articles')
-      .select('*')
-      .order('date', { ascending: false });
-    if (error) throw error;
-
-    res.json(allPostsData);
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-});
-
-// 3. Загрузка конкретной статьи (/loadFullArticle?id=ID)
-app.get('/loadFullArticle', async (req, res) => {
-  const { id } = req.query;
-  if (!id) return res.status(400).send("ID is required");
-
-  try {
-    const { data: article, error } = await supabase
-      .from('articles')
-      .select('*')
-      .eq('id', id, Number(id))
-      .single();
-    if (error || !article) return res.status(404).send("Post not found");
-
-    res.json(article);
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-});
-
-// 4. Лайки - увеличение лайков (/like/:id)
-app.post('/like/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    // Получить текущие лайки
-    const { data: post, error } = await supabase
-      .from('articles')
-      .select('likes')
-      .eq('id', id)
-      .single();
-
-    if (error || !post) return res.status(404).json({ error: 'Post not found' });
-
-    // Обновить лайки
-    const { data: updatedPost, error: updateError } = await supabase
-      .from('articles')
-      .update({ likes: (post.likes || 0) + 1 })
-      .eq('id', id)
-      .select()
-      .single();
-    if (updateError) throw updateError;
-
-    res.json({ success: true, likes: updatedPost.likes });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-
-
-
-
-
-
 
 
 
