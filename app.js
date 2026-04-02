@@ -217,7 +217,7 @@ app.get('/api/logout', (req, res) => {
 
 
 
-// const { createClient } = require('@supabase/supabase-js');
+const { createClient } = require('@supabase/supabase-js');
 // const supabaseUrl = 'https://nwopcdkydnuudovkgvxs.supabase.co'; // замените на свой URL
 // const supabaseKey = process.env.SUPABASE_KEY;
 // const supabase = createClient(supabaseUrl, supabaseKey);
