@@ -17,7 +17,8 @@ const allowedOrigins = [
     'https://pro-info.vercel.app',
     'http://127.0.0.1:5500',
     'http://localhost:5500',
-    'https://info-t.vercel.app' 
+    'https://info-t.vercel.app',
+    'https://iposters.vercel.app'
 ];
 
 app.use(cors({
