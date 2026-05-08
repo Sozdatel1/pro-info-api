@@ -271,9 +271,10 @@ app.get('/api/posts', async (req, res) => {
 
         const processedData = articles.map(post => ({
             ...post,
-            commentCount: post.comments_count || 0, 
+            // commentCount: post.comments_count || 0, 
             real_likes: allLikes.filter(l => l.post_id === post.id).length,
-            viewCount: allViews.filter(v => v.post_id === post.id).length
+            viewCount: allViews.filter(v => v.post_id === post.id).length,
+            commentCount: allComments.filter(c => c.post_id === post.id).length
         }));
 
         // Отправляем результат клиенту
