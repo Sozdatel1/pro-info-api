@@ -342,6 +342,26 @@ app.get('/api/article/:id', async (req, res) => {
 
 
 
+
+app.get('/api/comments/:postId', async (req, res) => {
+    try {
+        const { postId } = req.params;
+
+        const { data, error } = await supabase
+            .from('comments')
+            .select('*')
+            .eq('post_id', postId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 app.post('/api/publish', async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
