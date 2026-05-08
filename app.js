@@ -284,6 +284,103 @@ app.get('/api/posts', async (req, res) => {
 });
 
 
+app.get('/api/my-articles', async (req, res) => {
+    try {
+        // Получаем токен из заголовков запроса
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: "No token provided" });
+
+        const token = authHeader.split(' ')[1];
+
+        // 1. Проверяем пользователя на сервере по его токену
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        
+        if (authError || !user) throw new Error("Unauthorized");
+
+        // 2. Делаем запрос статей этого пользователя
+        const { data, error } = await supabase
+            .from('articles')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        res.json(data);
+    } catch (err) {
+        res.status(401).json({ error: err.message });
+    }
+});
+
+
+app.get('/api/article/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Запускаем всё параллельно: саму статью, счетчик лайков и счетчик просмотров
+        const [artRes, likesRes, viewsRes] = await Promise.all([
+            supabase.from('articles').select('*').eq('id', id).single(),
+            supabase.from('likes').select('*', { count: 'exact', head: true }).eq('post_id', id),
+            supabase.from('views').select('*', { count: 'exact', head: true }).eq('post_id', id)
+        ]);
+
+        if (artRes.error) throw artRes.error;
+
+        // Отдаем один объект со всеми данными
+        res.json({
+            ...artRes.data,
+            real_likes: likesRes.count || 0,
+            view_count: viewsRes.count || 0
+        });
+    } catch (err) {
+        res.status(404).json({ error: "Статья не найдена" });
+    }
+});
+
+
+
+app.post('/api/publish', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        const { title, text, image, id } = req.body; // id передаем, если это редактирование
+
+        if (!authHeader) return res.status(401).json({ error: "Нужна авторизация" });
+        const token = authHeader.split(' ')[1];
+
+        // 1. Проверяем пользователя
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) throw new Error("Сессия истекла");
+
+        const generatedName = user.email.split('@')[0];
+        const postData = {
+            title,
+            text,
+            image: image || "/img/staty/газета.png",
+            user_id: user.id,
+            author_name: generatedName
+        };
+
+        let result;
+        if (id) {
+            // --- РЕДАКТИРОВАНИЕ ---
+            result = await supabase
+                .from('articles')
+                .update({ title, text, image: postData.image })
+                .eq('id', id)
+                .eq('user_id', user.id); // Защита: редактировать может только автор
+        } else {
+            // --- СОЗДАНИЕ ---
+            result = await supabase.from('articles').insert([postData]);
+        }
+
+        if (result.error) throw result.error;
+        res.json({ success: true });
+
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
 
 
 
