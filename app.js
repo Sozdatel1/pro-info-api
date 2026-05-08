@@ -226,104 +226,9 @@ const crypto = require('crypto');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
 const REPO = "Sozdatel1/PRO-info";
 const PATH = "posts.json";
-
-
-// app.post('/publish', async (req, res) => {
-//   const { title, text, image } = req.body;
-//   if (!title || !text) return res.status(400).send("Title and text are required");
-
-//   try {
-//     const { data, error } = await supabase
-//       .from('articles')
-//       .insert([{
-//         id: Date.now(),  // или используйте автоинкрементное поле
-//         title,
-//         text,
-//         image: image || "/img/staty/газета.png",
-//         likes: 0,
-//         date: new Date().toISOString()
-//       }])
-//       .select();
-//     if (error) throw error;
-
-//     res.json({ success: true, post: data[0] });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message })
-//   }
-// });
-
-// // 2. Загрузка всех постов (/loadPosts)
-// app.get('/loadPosts', async (req, res) => {
-//   try {
-//     const { data: allPostsData, error } = await supabase
-//       .from('articles')
-//       .select('*')
-//       .order('date', { ascending: false });
-//     if (error) throw error;
-
-//     res.json(allPostsData);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message })
-//   }
-// });
-
-// // 3. Загрузка конкретной статьи (/loadFullArticle?id=ID)
-// app.get('/loadFullArticle', async (req, res) => {
-//   const { id } = req.query;
-//   if (!id) return res.status(400).send("ID is required");
-
-//   try {
-//     const { data: article, error } = await supabase
-//       .from('articles')
-//       .select('*')
-//       .eq('id', id, Number(id))
-//       .single();
-//     if (error || !article) return res.status(404).send("Post not found");
-
-//     res.json(article);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message })
-//   }
-// });
-
-// // 4. Лайки - увеличение лайков (/like/:id)
-// app.post('/like/:id', async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     // Получить текущие лайки
-//     const { data: post, error } = await supabase
-//       .from('articles')
-//       .select('likes')
-//       .eq('id', id)
-//       .single();
-
-//     if (error || !post) return res.status(404).json({ error: 'Post not found' });
-
-//     // Обновить лайки
-//     const { data: updatedPost, error: updateError } = await supabase
-//       .from('articles')
-//       .update({ likes: (post.likes || 0) + 1 })
-//       .eq('id', id)
-//       .select()
-//       .single();
-//     if (updateError) throw updateError;
-
-//     res.json({ success: true, likes: updatedPost.likes });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// });
-
-
-
-
-
-
-
-
+require('dotenv').config();
 const supabase = createClient(
-  'https://nwopcdkydnuudovkgvxs.supabase.co', 
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
@@ -347,115 +252,36 @@ app.post('/api/delete-user', async (req, res) => {
 });
 
 
-
-
-
-app.post('/publish', async (req, res) => {
-    // 1. Забираем все три поля
-    const { title, text, image } = req.body; 
-    
-    // Проверка: заголовок и текст обязательны
-    if (!title || !text) return res.status(400).send("Title and text are required");
-
+app.get('/api/posts', async (req, res) => {
     try {
-        const getFile = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
-            headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-        });
-        const fileData = await getFile.json();
+        // ТВОЙ КОД ПЕРЕНЕСЕН СЮДА:
+        const [resArticles, resLikes, resViews] = await Promise.all([
+            supabase.from('articles').select('*').order('created_at', { ascending: false }),
+            supabase.from('likes').select('post_id'),
+            supabase.from('views').select('post_id')
+        ]);
 
-        let posts = JSON.parse(Buffer.from(fileData.content, 'base64').toString());
+        if (resArticles.error) throw resArticles.error;
 
-        // 2. ИСПРАВЛЕНО: Добавляем объект со всеми полями
-        posts.unshift({ 
-            id: Date.now(), 
-            title: title, 
-            text: text, 
-            image: image || "/img/staty/газета.png", // Если картинки нет, ставим дефолт
-            date: new Date().toLocaleString() 
-        });
+        const articles = resArticles.data || [];
+        const allLikes = resLikes.data || [];
+        const allViews = resViews.data || [];
 
-        // 3. Пушим обратно
-        const update = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
-            method: 'PUT',
-            headers: { 
-                'Authorization': `token ${GITHUB_TOKEN}`, 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({
-                message: `New article: ${title}`,
-                content: Buffer.from(JSON.stringify(posts, null, 2)).toString('base64'),
-                sha: fileData.sha
-            })
-        });
+        const processedData = articles.map(post => ({
+            ...post,
+            commentCount: post.comments_count || 0, 
+            real_likes: allLikes.filter(l => l.post_id === post.id).length,
+            viewCount: allViews.filter(v => v.post_id === post.id).length
+        }));
 
-        if (update.ok) res.send({ success: true });
-        else res.status(500).send("GitHub Error");
+        // Отправляем результат клиенту
+        res.json(processedData);
+
     } catch (err) {
-        res.status(500).send(err.message);
+        console.error("Ошибка сервера:", err.message);
+        res.status(500).json({ error: err.message });
     }
 });
-
-
-
-// Очередь для синхронизации записи
-let writeQueue = Promise.resolve();
-
-app.post('/like/:id', async (req, res) => {
-    const { id } = req.params;
-
-    // Цепляем новый процесс к хвосту очереди
-    writeQueue = writeQueue.then(async () => {
-        try {
-            // ИСПРАВЛЕНО: Добавлен /repos/ и правильные слеши
-            const getFile = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
-                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-            });
-
-            if (!getFile.ok) throw new Error("Failed to fetch file from GitHub");
-            
-            const fileData = await getFile.json();
-            const posts = JSON.parse(Buffer.from(fileData.content, 'base64').toString());
-
-            const post = posts.find(p => p.id == id);
-            if (!post) {
-                // Используем return, чтобы выйти из функции внутри then
-                res.status(404).json({ error: "Post not found" });
-                return;
-            }
-            
-            post.likes = (post.likes || 0) + 1;
-
-            const update = await fetch(`https://api.github.com/repos/${REPO}/contents/${PATH}`, {
-                method: 'PUT',
-                headers: { 
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Content-Type': 'application/json' 
-                },
-                body: JSON.stringify({
-                    message: `Like post ${id}`,
-                    content: Buffer.from(JSON.stringify(posts, null, 2)).toString('base64'),
-                    sha: fileData.sha 
-                })
-            });
-
-            if (update.ok) {
-                res.json({ success: true, likes: post.likes });
-            } else {
-                const errorLog = await update.json();
-                console.error("GitHub API Error:", errorLog);
-                res.status(500).json({ success: false, message: "GitHub Save Error" });
-            }
-        } catch (err) {
-            console.error("Queue Error:", err);
-            if (!res.headersSent) res.status(500).json({ error: err.message });
-        }
-    }).catch(err => {
-        // Этот catch гарантирует, что если один лайк сломается, 
-        // очередь НЕ заблокируется для следующих лайков
-        console.error("Fatal Queue Crash:", err);
-    });
-});
-
 
 
 
