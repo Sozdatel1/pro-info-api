@@ -258,7 +258,8 @@ app.get('/api/posts', async (req, res) => {
         const [resArticles, resLikes, resViews] = await Promise.all([
             supabase.from('articles').select('*').order('created_at', { ascending: false }),
             supabase.from('likes').select('post_id'),
-            supabase.from('views').select('post_id')
+            supabase.from('views').select('post_id'),
+            supabase.from('comments').select('post_id') 
         ]);
 
         if (resArticles.error) throw resArticles.error;
@@ -266,6 +267,7 @@ app.get('/api/posts', async (req, res) => {
         const articles = resArticles.data || [];
         const allLikes = resLikes.data || [];
         const allViews = resViews.data || [];
+        const allComments = resComments.data || [];
 
         const processedData = articles.map(post => ({
             ...post,
