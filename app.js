@@ -313,7 +313,7 @@ app.get('/api/my-articles', async (req, res) => {
 });
 
 
-app.get('/api/article/:id', async (req, res) => {
+app.get('/api/article/:id/?', async (req, res) => {
     try {
         const { id } = req.params;
 
