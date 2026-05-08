@@ -255,7 +255,7 @@ app.post('/api/delete-user', async (req, res) => {
 app.get('/api/posts', async (req, res) => {
     try {
         // ТВОЙ КОД ПЕРЕНЕСЕН СЮДА:
-        const [resArticles, resLikes, resViews] = await Promise.all([
+        const [resArticles, resLikes, resViews, resComments] = await Promise.all([
             supabase.from('articles').select('*').order('created_at', { ascending: false }),
             supabase.from('likes').select('post_id'),
             supabase.from('views').select('post_id'),
