@@ -369,39 +369,40 @@ app.post('/api/like', async (req, res) => {
         const authHeader = req.headers.authorization;
         let userId = null;
 
-        // Если токен передан, проверяем пользователя
-        if (authHeader) {
+        // Извлекаем userId, если есть токен
+        if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.split(' ')[1];
-            const { data: { user } } = await supabase.auth.getUser(token);
+            const { data: { user }, error: authError } = await supabase.auth.getUser(token);
             if (user) userId = user.id;
         }
 
-        // Вставляем лайк. В таблице likes у тебя должен быть уникальный индекс (post_id, user_id) 
-        // или (post_id, ip), чтобы не лайкали дважды.
-        const { error } = await supabase
+        // Попытка вставить лайк
+        const { error: insertError } = await supabase
             .from('likes')
-            .insert([{ 
-                post_id: postId, 
-                user_id: userId // Будет null для анонимов
-            }]);
+            .insert([{ post_id: postId, user_id: userId }]);
 
-        if (error) {
-            if (error.code === '23505') return res.status(400).json({ error: "Already liked" });
-            throw error;
+        if (insertError) {
+            // 23505 — код нарушения уникальности (уже лайкнул)
+            if (insertError.code === '23505') {
+                return res.status(400).json({ error: "already_liked" });
+            }
+            throw insertError;
         }
 
-        // Считаем общее кол-во лайков после вставки
-        const { count } = await supabase
+        // Считаем актуальное кол-во лайков
+        const { count, error: countError } = await supabase
             .from('likes')
             .select('*', { count: 'exact', head: true })
             .eq('post_id', postId);
 
-        res.json({ success: true, count });
+        if (countError) throw countError;
+
+        res.json({ success: true, count: count || 0 });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("Like error:", err.message);
+        res.status(500).json({ error: "Server error" });
     }
 });
-
 
 
 app.post('/api/publish', async (req, res) => {
