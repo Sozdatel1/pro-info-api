@@ -362,6 +362,48 @@ app.get('/api/comments/:postId', async (req, res) => {
 });
 
 
+
+app.post('/api/like', async (req, res) => {
+    try {
+        const { postId } = req.body;
+        const authHeader = req.headers.authorization;
+        let userId = null;
+
+        // Если токен передан, проверяем пользователя
+        if (authHeader) {
+            const token = authHeader.split(' ')[1];
+            const { data: { user } } = await supabase.auth.getUser(token);
+            if (user) userId = user.id;
+        }
+
+        // Вставляем лайк. В таблице likes у тебя должен быть уникальный индекс (post_id, user_id) 
+        // или (post_id, ip), чтобы не лайкали дважды.
+        const { error } = await supabase
+            .from('likes')
+            .insert([{ 
+                post_id: postId, 
+                user_id: userId // Будет null для анонимов
+            }]);
+
+        if (error) {
+            if (error.code === '23505') return res.status(400).json({ error: "Already liked" });
+            throw error;
+        }
+
+        // Считаем общее кол-во лайков после вставки
+        const { count } = await supabase
+            .from('likes')
+            .select('*', { count: 'exact', head: true })
+            .eq('post_id', postId);
+
+        res.json({ success: true, count });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+
 app.post('/api/publish', async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
