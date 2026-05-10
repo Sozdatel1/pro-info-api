@@ -405,6 +405,55 @@ app.post('/api/like', async (req, res) => {
 });
 
 
+
+// В твоем основном файле сервера (например, index.js или server.js)
+app.post('/api/view/:postId', async (req, res) => {
+    const { postId } = req.params;
+    
+    // Получаем IP пользователя (это замена navigator.userAgent на сервере)
+    const viewerIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+    try {
+        // Пытаемся вставить запись в таблицу views
+        // Supabase сам отсечет дубликат, если у тебя стоит Unique на (post_id, viewer_id)
+        const { error } = await supabase
+            .from('views')
+            .insert([{ 
+                post_id: postId, 
+                viewer_id: viewerIp // Используем IP как уникальный ID анонима
+            }]);
+
+        if (error) {
+            // Если ошибка 23505 (дубликат), просто отвечаем 200, это не страшно
+            return res.status(200).json({ message: 'Already viewed' });
+        }
+
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+
+
+app.get('/api/view-count/:postId', async (req, res) => {
+    const { postId } = req.params;
+
+    try {
+        const { count, error } = await supabase
+            .from('views')
+            .select('*', { count: 'exact', head: true })
+            .eq('post_id', postId);
+
+        if (error) throw error;
+
+        res.status(200).json({ count: count || 0 });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 app.post('/api/publish', async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
