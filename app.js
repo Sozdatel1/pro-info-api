@@ -362,6 +362,36 @@ app.get('/api/comments/:postId', async (req, res) => {
 });
 
 
+app.post('/api/comments', async (req, res) => {
+    const { postId, text } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: 'Не авторизован' });
+
+    try {
+        // Проверяем токен через Supabase на сервере
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) throw new Error('Ошибка авторизации');
+
+        const username = user.email.split('@')[0];
+
+        // Вставляем комментарий
+        const { error: insertError } = await supabase.from('comments').insert([{
+            post_id: postId,
+            user_id: user.id,
+            user_name: username,
+            content: text
+        }]);
+
+        if (insertError) throw insertError;
+
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 
 app.post('/api/like', async (req, res) => {
     try {
