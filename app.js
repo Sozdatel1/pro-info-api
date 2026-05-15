@@ -346,12 +346,13 @@ app.get('/api/article/:id', async (req, res) => {
 app.get('/api/comments/:postId', async (req, res) => {
     try {
         const { postId } = req.params;
-
+        const limit = parseInt(req.query.limit) || 3;
         const { data, error } = await supabase
             .from('comments')
             .select('*')
             .eq('post_id', postId)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(limit); 
 
         if (error) throw error;
 
