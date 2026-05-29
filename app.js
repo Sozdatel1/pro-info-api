@@ -343,19 +343,25 @@ app.get('/api/article/:id', async (req, res) => {
 
 
 
+// =========================================================================
+// 🔥 ИСПРАВЛЕННЫЙ GET-РОУТ: ОТДАЕТ ВСЮ БАЗУ ДЛЯ СБОРКИ ДЕРЕВА НА ФРОНТЕНДЕ
+// =========================================================================
 app.get('/api/comments/:postId', async (req, res) => {
     try {
         const { postId } = req.params;
-        const limit = parseInt(req.query.limit) || 3;
+        
+        // ВАЖНО: Убираем .limit() на сервере вообще! 
+        // Ставим ascending: true, чтобы комменты шли по порядку времени сверху вниз,
+        // тогда рекурсивный buildCommentTree соберет ветки без единого бага!
         const { data, error } = await supabase
             .from('comments')
             .select('*')
             .eq('post_id', postId)
-            .order('created_at', { ascending: false })
-            .limit(limit); 
+            .order('created_at', { ascending: true }); 
 
         if (error) throw error;
 
+        // Возвращаем чистый, полный массив данных
         res.json(data || []);
     } catch (err) {
         res.status(500).json({ error: err.message });
