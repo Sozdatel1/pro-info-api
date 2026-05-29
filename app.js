@@ -343,65 +343,97 @@ app.get('/api/article/:id', async (req, res) => {
 
 
 
-// =========================================================================
-// 🔥 ИСПРАВЛЕННЫЙ GET-РОУТ: ОТДАЕТ ВСЮ БАЗУ ДЛЯ СБОРКИ ДЕРЕВА НА ФРОНТЕНДЕ
-// =========================================================================
+// 1. GET: Выводит обычным пользователям ТОЛЬКО проверенные комменты
 app.get('/api/comments/:postId', async (req, res) => {
     try {
         const { postId } = req.params;
         
-        // ВАЖНО: Убираем .limit() на сервере вообще! 
-        // Ставим ascending: true, чтобы комменты шли по порядку времени сверху вниз,
-        // тогда рекурсивный buildCommentTree соберет ветки без единого бага!
         const { data, error } = await supabase
             .from('comments')
             .select('*')
             .eq('post_id', postId)
-            .order('created_at', { ascending: false }); 
+            .eq('is_approved', true) // 🔥 Фильтр шрапнели: только одобренные!
+            .order('created_at', { ascending: true }); 
 
         if (error) throw error;
-
-        // Возвращаем чистый, полный массив данных
         res.json(data || []);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-
+// 2. POST: Принудительный загон любого нового коммента на карантин (false)
 app.post('/api/comments', async (req, res) => {
-    // 🔥 ДОБАВИЛИ: Принимаем parentId из тела запроса вместе с postId и text
     const { postId, text, parentId } = req.body;
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) return res.status(401).json({ error: 'Не авторизован' });
 
     try {
-        // Проверяем токен через Supabase на сервере (Твой оригинальный фикс)
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) throw new Error('Ошибка авторизации');
 
         const username = user.email.split('@')[0];
 
-        // Вставляем комментарий
         const { error: insertError } = await supabase.from('comments').insert([{
             post_id: postId,
             user_id: user.id,
             user_name: username,
             content: text,
-            // 🔥 ДОБАВИЛИ: Сохраняем parent_id в базу. Если его нет, запишется null (базовый коммент)
-            parent_id: parentId ? parseInt(parentId) : null
+            parent_id: parentId ? parseInt(parentId) : null,
+            is_approved: false // 🔥 ЖЕСТКИЙ ЗАМОК: всегда false на старте!
         }]);
 
         if (insertError) throw insertError;
-
-        res.status(200).json({ success: true });
+        res.status(200).json({ success: true, message: 'Отправлено на модерацию!' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+// 3. 🔥 НОВЫЙ СЕКРЕТНЫЙ РОУТ ДЛЯ АДМИНА: Роут PATCH для перевода в true
+app.patch('/api/comments/approve/:commentId', async (req, res) => {
+    const { commentId } = req.params;
+    const token = req.headers.authorization?.split(' ')[1];
 
+    if (!token) return res.status(401).json({ error: 'Доступ запрещен' });
+
+    try {
+        // Проверяем сессию админа
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) throw new Error('Ошибка авторизации');
+
+        // Сюда можно вписать твой email, чтобы никто другой не мог одобрять комменты!
+        // if (user.email !== 'твой-email@gmail.com') return res.status(403).json({ error: 'Вы не админ!' });
+
+        // Обновляем флаг на true в Supabase
+        const { error: updateError } = await supabase
+            .from('comments')
+            .update({ is_approved: true })
+            .eq('id', commentId);
+
+        if (updateError) throw updateError;
+        res.status(200).json({ success: true, message: 'Комментарий успешно опубликован! 👍' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. 🔥 НОВЫЙ СЕКРЕТНЫЙ РОУТ ДЛЯ ПРОСМОТРА ОЧЕРЕДИ МОДЕРАЦИИ
+app.get('/api/admin/unapproved', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('comments')
+            .select('*')
+            .eq('is_approved', false)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 app.post('/api/like', async (req, res) => {
     try {
         const { postId } = req.body;
