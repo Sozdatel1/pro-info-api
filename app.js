@@ -361,7 +361,7 @@ app.get('/api/comments/:postId', async (req, res) => {
     }
 });
 
-// 2. POST: Принудительный загон любого нового传коммента на карантин (false)
+// 2. POST: Принудительный загон любого нового коммента на карантин (false)
 app.post('/api/comments', async (req, res) => {
     const { postId, text, parentId } = req.body;
     const token = req.headers.authorization?.split(' ')[1];
