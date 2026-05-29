@@ -357,7 +357,7 @@ app.get('/api/comments/:postId', async (req, res) => {
             .from('comments')
             .select('*')
             .eq('post_id', postId)
-            .order('created_at', { ascending: true }); 
+            .order('created_at', { ascending: false }); 
 
         if (error) throw error;
 
