@@ -364,13 +364,14 @@ app.get('/api/comments/:postId', async (req, res) => {
 
 
 app.post('/api/comments', async (req, res) => {
-    const { postId, text } = req.body;
+    // 🔥 ДОБАВИЛИ: Принимаем parentId из тела запроса вместе с postId и text
+    const { postId, text, parentId } = req.body;
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) return res.status(401).json({ error: 'Не авторизован' });
 
     try {
-        // Проверяем токен через Supabase на сервере
+        // Проверяем токен через Supabase на сервере (Твой оригинальный фикс)
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) throw new Error('Ошибка авторизации');
 
@@ -381,7 +382,9 @@ app.post('/api/comments', async (req, res) => {
             post_id: postId,
             user_id: user.id,
             user_name: username,
-            content: text
+            content: text,
+            // 🔥 ДОБАВИЛИ: Сохраняем parent_id в базу. Если его нет, запишется null (базовый коммент)
+            parent_id: parentId ? parseInt(parentId) : null
         }]);
 
         if (insertError) throw insertError;
@@ -391,7 +394,6 @@ app.post('/api/comments', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-
 
 
 app.post('/api/like', async (req, res) => {
