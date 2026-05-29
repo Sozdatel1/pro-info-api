@@ -343,7 +343,6 @@ app.get('/api/article/:id', async (req, res) => {
 
 
 
-// 1. GET: Выводит обычным пользователям ТОЛЬКО проверенные комменты
 app.get('/api/comments/:postId', async (req, res) => {
     try {
         const { postId } = req.params;
@@ -362,7 +361,7 @@ app.get('/api/comments/:postId', async (req, res) => {
     }
 });
 
-// 2. POST: Принудительный загон любого нового коммента на карантин (false)
+// 2. POST: Принудительный загон любого нового传коммента на карантин (false)
 app.post('/api/comments', async (req, res) => {
     const { postId, text, parentId } = req.body;
     const token = req.headers.authorization?.split(' ')[1];
@@ -391,7 +390,7 @@ app.post('/api/comments', async (req, res) => {
     }
 });
 
-// 3. 🔥 НОВЫЙ СЕКРЕТНЫЙ РОУТ ДЛЯ АДМИНА: Роут PATCH для перевода в true
+// 3. 🔥 РОУТ PATCH: Одобрение комментария (СТРОГО ДЛЯ АККАУНТА KAPIBARA)
 app.patch('/api/comments/approve/:commentId', async (req, res) => {
     const { commentId } = req.params;
     const token = req.headers.authorization?.split(' ')[1];
@@ -399,12 +398,17 @@ app.patch('/api/comments/approve/:commentId', async (req, res) => {
     if (!token) return res.status(401).json({ error: 'Доступ запрещен' });
 
     try {
-        // Проверяем сессию админа
+        // Проверяем сессию в Supabase Auth
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) throw new Error('Ошибка авторизации');
 
-        // Сюда можно вписать твой email, чтобы никто другой не мог одобрять комменты!
-        // if (user.email !== 'твой-email@gmail.com') return res.status(403).json({ error: 'Вы не админ!' });
+        // Вырезаем юзернейм из почты в точности как в твоем POST-роуте
+        const username = user.email.split('@')[0];
+
+        // 🦫 ЖЕСТКИЙ КИБЕР-ЩИТ: Проверяем, что вошел именно kapibara!
+        if (username !== 'kapibara') {
+            return res.status(403).json({ error: 'Доступ заблокирован: Вы не админ kapibara! 🛑' });
+        }
 
         // Обновляем флаг на true в Supabase
         const { error: updateError } = await supabase
@@ -419,9 +423,23 @@ app.patch('/api/comments/approve/:commentId', async (req, res) => {
     }
 });
 
-// 4. 🔥 НОВЫЙ СЕКРЕТНЫЙ РОУТ ДЛЯ ПРОСМОТРА ОЧЕРЕДИ МОДЕРАЦИИ
+// 4. 🔥 GET РОУТ: Просмотр очереди модерации (СТРОГО ДЛЯ АККАУНТА KAPIBARA)
 app.get('/api/admin/unapproved', async (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) return res.status(401).json({ error: 'Доступ запрещен' });
+
     try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) throw new Error('Ошибка авторизации');
+
+        const username = user.email.split('@')[0];
+
+        // 🦫 Бьем по рукам любого левого чела, который ломится в карантин
+        if (username !== 'kapibara') {
+            return res.status(403).json({ error: 'У вас нет прав на просмотр очереди модерации! 🛑' });
+        }
+
         const { data, error } = await supabase
             .from('comments')
             .select('*')
