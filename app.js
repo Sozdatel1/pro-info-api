@@ -344,7 +344,73 @@ app.get('/api/article/:id', async (req, res) => {
 });
 
 
+// =========================================================================
+// 🔥 🔥 🔥 НОВЫЕ АДМИНСКИЕ РОУТЫ СТАТЕЙ (ТО, ЧЕГО НЕ ХВАТАЛО ДЛЯ СВЯЗКИ С ФРОНТОМ)
+// =========================================================================
 
+// 4. GET: Просмотр очереди НЕОДОБРЕННЫХ СТАТЕЙ (ДОСТУП СТРОГО ДЛЯ KAPIBARA)
+app.get('/api/admin/unapproved-posts', async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Доступ запрещен' });
+
+    const token = authHeader.split(' ')[1]; // Извлекаем чистый токен Bearer
+
+    try {
+        // Декодируем сессию через токен в Supabase Auth
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) throw new Error('Ошибка авторизации');
+
+        const username = user.email.split('@')[0];
+
+        // ЖЕСТКИЙ ФАЙРВОЛ: Отбиваем атаку любого, кто косит под Капибару!
+        if (username !== 'kapibara') {
+            return res.status(403).json({ error: 'У вас нет прав на просмотр очереди постов! 🛑' });
+        }
+
+        // Вытаскиваем из таблицы articles строки, у которых флаг равен false
+        const { data, error } = await supabase
+            .from('articles')
+            .select('*')
+            .eq('is_approved', false)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json(data || []); // Возвращаем чистый JSON-массив фронтенду!
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 5. PATCH: Одобрение статьи по её ID (ДОСТУП СТРОГО ДЛЯ KAPIBARA)
+app.patch('/api/posts/approve/:postId', async (req, res) => {
+    const { postId } = req.params;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Доступ запрещен' });
+
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (authError || !user) throw new Error('Ошибка авторизации');
+
+        const username = user.email.split('@')[0];
+
+        if (username !== 'kapibara') {
+            return res.status(403).json({ error: 'Вы не админ kapibara! 🛑' });
+        }
+
+        // Обновляем флаг на true в таблице articles
+        const { error: updateError } = await supabase
+            .from('articles')
+            .update({ is_approved: true })
+            .eq('id', postId);
+
+        if (updateError) throw updateError;
+        res.status(200).json({ success: true, message: 'Статья успешно опубликована! 📄👍' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.get('/api/comments/:postId', async (req, res) => {
     try {
