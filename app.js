@@ -254,9 +254,9 @@ app.post('/api/delete-user', async (req, res) => {
 
 app.get('/api/posts', async (req, res) => {
     try {
-        // ТВОЙ КОД ПЕРЕНЕСЕН СЮДА:
+        // 🔥 ШИЛД-ФИЛЬТР СИНИОРА: Добавляем .eq('is_approved', true) в запрос статей
         const [resArticles, resLikes, resViews, resComments] = await Promise.all([
-            supabase.from('articles').select('*').order('created_at', { ascending: false }),
+            supabase.from('articles').select('*').eq('is_approved', true).order('created_at', { ascending: false }),
             supabase.from('likes').select('post_id'),
             supabase.from('views').select('post_id'),
             supabase.from('comments').select('post_id') 
@@ -271,13 +271,11 @@ app.get('/api/posts', async (req, res) => {
 
         const processedData = articles.map(post => ({
             ...post,
-            // commentCount: post.comments_count || 0, 
             real_likes: allLikes.filter(l => l.post_id === post.id).length,
             viewCount: allViews.filter(v => v.post_id === post.id).length,
             commentCount: allComments.filter(c => c.post_id === post.id).length
         }));
 
-        // Отправляем результат клиенту
         res.json(processedData);
 
     } catch (err) {
@@ -320,7 +318,7 @@ app.get('/api/article/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Запускаем всё параллельно: саму статью, счетчик лайков и счетчик просмотров
+        // Запускаем параллельно саму статью, счетчик лайков и просмотров
         const [artRes, likesRes, viewsRes] = await Promise.all([
             supabase.from('articles').select('*').eq('id', id).single(),
             supabase.from('likes').select('*', { count: 'exact', head: true }).eq('post_id', id),
@@ -329,7 +327,12 @@ app.get('/api/article/:id', async (req, res) => {
 
         if (artRes.error) throw artRes.error;
 
-        // Отдаем один объект со всеми данными
+        // 🔥 КИБЕР-ЗАМОК: Если статья скрыта (is_approved === false), выдаем ошибку 404!
+        // (Примечание: Сюда можно дописать условие, чтобы админ kapibara всё равно мог её видеть)
+        if (artRes.data && artRes.data.is_approved === false) {
+            return res.status(404).json({ error: "Статья находится на проверке модератора!" });
+        }
+
         res.json({
             ...artRes.data,
             real_likes: likesRes.count || 0,
