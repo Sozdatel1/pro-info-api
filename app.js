@@ -285,7 +285,7 @@ app.post('/api/upload-image', async (req, res) => {
         
         if (result && result.status_code === 200 && result.image && result.image.url) {
             // Сборка нашей вечной прокси-ссылки на Рендер
-            const secureProxyUrl = `https://onrender.com{encodeURIComponent(result.image.url)}`;
+            const secureProxyUrl = `https://pro-info-api.onrender.com/api/image-proxy?url=${encodeURIComponent(result.image.url)}`;
             res.json({ url: secureProxyUrl }); // Возвращаем фронтенду идеальную ссылку!
         } else {
             console.error("Детали отказа серверов FreeImage:", result);
