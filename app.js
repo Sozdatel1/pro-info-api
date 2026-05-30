@@ -253,7 +253,9 @@ app.post('/api/delete-user', async (req, res) => {
   }
 });
 
-// 🔥 УЛЬТИМАТИВНЫЙ МЕДИА-ПРОКСИ РОУТ ДЛЯ ФОТО (ИБЕГАЕМ CORS БРАУЗЕРА)
+const fetch = require('node-fetch'); // Убедись, что у тебя установлен node-fetch или используй встроенный в node v18+
+
+// 1. Роут загрузки строки на FreeImage со стороны сервера
 app.post('/api/upload-image', async (req, res) => {
     try {
         const { imageBase64 } = req.body;
@@ -262,7 +264,6 @@ app.post('/api/upload-image', async (req, res) => {
         const FREEIMAGE_API_KEY = '6d207e02198a847aa98d0a2a901485a5';
         const formData = new FormData();
         
-        // Передаем картинку в формате base64 строки напрямую на FreeImage со стороны сервера
         formData.append('source', imageBase64);
         formData.append('action', 'upload');
         formData.append('format', 'json');
@@ -275,8 +276,9 @@ app.post('/api/upload-image', async (req, res) => {
         const result = await response.json();
         
         if (result && result.status_code === 200 && result.image && result.image.url) {
-            // Возвращаем фронтенду готовую вечную ссылку
-            res.json({ url: result.image.url });
+            // 🔥 МАГИЯ: Вместо заблокированной ссылки iili.io отдаем ссылку НА НАШ СЕРВЕР РЕНДЕРА!
+            const secureProxyUrl = `https://pro-info-api.onrender.com/api/image-proxy?url=${encodeURIComponent(result.image.url)}`;
+            res.json({ url: secureProxyUrl });
         } else {
             throw new Error('Server upload failure');
         }
@@ -285,6 +287,23 @@ app.post('/api/upload-image', async (req, res) => {
     }
 });
 
+// 2. Роут скачивания и отдачи пикселей (Браузер думает, что картинку нарисовал твой сервер!)
+app.get('/api/image-proxy', async (req, res) => {
+    try {
+        const targetUrl = req.query.url;
+        if (!targetUrl) return res.status(400).send('No URL specified');
+
+        // Скачиваем бинарный поток картинки сервером Рендера из-за рубежа
+        const response = await fetch(targetUrl);
+        if (!response.ok) return res.status(500).send('Failed to fetch image');
+
+        // Копируем тип контента (image/jpeg, image/png) и выплевываем буфер в браузер!
+        res.setHeader('Content-Type', response.headers.get('content-type'));
+        response.body.pipe(res);
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+});
 
 app.get('/api/posts', async (req, res) => {
     try {
