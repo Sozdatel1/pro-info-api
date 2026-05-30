@@ -251,6 +251,38 @@ app.post('/api/delete-user', async (req, res) => {
   }
 });
 
+// 🔥 УЛЬТИМАТИВНЫЙ МЕДИА-ПРОКСИ РОУТ ДЛЯ ФОТО (ИБЕГАЕМ CORS БРАУЗЕРА)
+app.post('/api/upload-image', async (req, res) => {
+    try {
+        const { imageBase64 } = req.body;
+        if (!imageBase64) return res.status(400).json({ error: "No image content provided" });
+
+        const FREEIMAGE_API_KEY = '6d207e02198a847aa98d0a2a901485a5';
+        const formData = new FormData();
+        
+        // Передаем картинку в формате base64 строки напрямую на FreeImage со стороны сервера
+        formData.append('source', imageBase64);
+        formData.append('action', 'upload');
+        formData.append('format', 'json');
+
+        const response = await fetch(`https://freeimage.host/api/1/upload?key=${FREEIMAGE_API_KEY}`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        if (result && result.status_code === 200 && result.image && result.image.url) {
+            // Возвращаем фронтенду готовую вечную ссылку
+            res.json({ url: result.image.url });
+        } else {
+            throw new Error('Server upload failure');
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 app.get('/api/posts', async (req, res) => {
     try {
