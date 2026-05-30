@@ -11,7 +11,7 @@ const DEV_KEY = process.env.DEV_KEY;
 // Разрешаем фронтенду подключаться
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.json());
+
 
 // 1. Настройка CORS для Express
 // На Render в app.js (примерно 28 строка)
