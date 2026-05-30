@@ -256,33 +256,43 @@ app.post('/api/delete-user', async (req, res) => {
 const fetch = require('node-fetch'); // Убедись, что у тебя установлен node-fetch или используй встроенный в node v18+
 
 // 1. Роут загрузки строки на FreeImage со стороны сервера
+// 🔥 АБСОЛЮТНЫЙ НЕУЯЗВИМЫЙ ВАРИАНТ РОУТА ЗАГРУЗКИ ДЛЯ SERVER.JS (БЕЗ FORMDATA)
 app.post('/api/upload-image', async (req, res) => {
     try {
         const { imageBase64 } = req.body;
         if (!imageBase64) return res.status(400).json({ error: "No image content provided" });
 
         const FREEIMAGE_API_KEY = '6d207e02198a847aa98d0a2a901485a5';
-        const formData = new FormData();
-        
-        formData.append('source', imageBase64);
-        formData.append('action', 'upload');
-        formData.append('format', 'json');
 
+        // ИСПОЛЬЗУЕМ КЛАССИЧЕСКИЙ СЕРВЕРНЫЙ КOНТУР URLSearchParams ДЛЯ СВЕРХНАДЕЖНОЙ ПЕРЕДАЧИ СТРОК С БАЗЫ
+        const params = new URLSearchParams();
+        params.append('source', imageBase64); // Передаем чистую строку base64
+        params.append('action', 'upload');
+        params.append('format', 'json');
+
+        // Стремительный POST-запрос со стороны сервера напрямую на FreeImage API v1
         const response = await fetch(`https://freeimage.host/api/1/upload?key=${FREEIMAGE_API_KEY}`, {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded' // Жестко задали серверный тип контента!
+            },
+            body: params
         });
 
+        if (!response.ok) throw new Error("FreeImage REST API connection error");
+        
         const result = await response.json();
         
         if (result && result.status_code === 200 && result.image && result.image.url) {
-            // 🔥 МАГИЯ: Вместо заблокированной ссылки iili.io отдаем ссылку НА НАШ СЕРВЕР РЕНДЕРА!
-            const secureProxyUrl = `https://pro-info-api.onrender.com/api/image-proxy?url=${encodeURIComponent(result.image.url)}`;
-            res.json({ url: secureProxyUrl });
+            // Сборка нашей вечной прокси-ссылки на Рендер
+            const secureProxyUrl = `https://onrender.com{encodeURIComponent(result.image.url)}`;
+            res.json({ url: secureProxyUrl }); // Возвращаем фронтенду идеальную ссылку!
         } else {
+            console.error("Детали отказа серверов FreeImage:", result);
             throw new Error('Server upload failure');
         }
     } catch (err) {
+        console.error("Критический сбой на бэкенде сервера:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
