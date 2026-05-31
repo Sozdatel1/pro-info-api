@@ -233,6 +233,18 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
+// 🔥 ШАГ 2. АБСОЛЮТНЫЙ ФИКС СИНИОРА: Объявляем и инициализируем суверенный мастер-клиент supabaseAdmin!
+// Он берет секретный service_role из переменных окружения и обходит любые блокировки валидатора!
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY, // Наш секретный ключ из env!
+  {
+    auth: {
+        autoRefreshToken: false,
+        persistSession: false
+    }
+  }
+);
 // 🔥 СУВЕРЕННЫЙ СТРОГИЙ РОУТ ПРОВЕРКИ НИКНЕЙМА С УЧЕТОМ РЕГИСТРА БУКВ
 app.post('/api/check-username', async (req, res) => {
     try {
