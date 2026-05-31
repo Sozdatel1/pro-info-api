@@ -362,11 +362,12 @@ app.get('/api/image-proxy', async (req, res) => {
 app.get('/api/posts', async (req, res) => {
     try {
         // 🔥 ШИЛД-ФИЛЬТР СИНИОРА: Добавляем .eq('is_approved', true) в запрос статей
-        const [resArticles, resLikes, resViews, resComments] = await Promise.all([
+        const [resArticles, resLikes, resViews, resComments, resUsers] = await Promise.all([
             supabase.from('articles').select('*').eq('is_approved', true).order('created_at', { ascending: false }),
             supabase.from('likes').select('post_id'),
             supabase.from('views').select('post_id'),
-            supabase.from('comments').select('post_id') 
+            supabase.from('comments').select('post_id'),
+            supabaseAdmin.auth.admin.listUsers()
         ]);
 
         if (resArticles.error) throw resArticles.error;
@@ -375,13 +376,30 @@ app.get('/api/posts', async (req, res) => {
         const allLikes = resLikes.data || [];
         const allViews = resViews.data || [];
         const allComments = resComments.data || [];
+        const allUsersList = resUsers.data?.users || [];
 
-        const processedData = articles.map(post => ({
-            ...post,
-            real_likes: allLikes.filter(l => l.post_id === post.id).length,
-            viewCount: allViews.filter(v => v.post_id === post.id).length,
-            commentCount: allComments.filter(c => c.post_id === post.id).length
-        }));
+       const processedData = articles.map(post => {
+            // Ищем автора этой конкретной статьи в списке пользователей по id
+            const authorAccount = allUsersList.find(u => u.id === post.user_id);
+            
+            let beautifulName = "Аноним";
+            if (authorAccount) {
+                // Считываем его сочный, измененный красивый регистр букв из метаданных (Yaa / Kapibara)!
+                beautifulName = authorAccount.user_metadata?.display_name || authorAccount.user_metadata?.name || authorAccount.email.split('@')[0];
+            } else {
+                // Если юзер не найден (старый пост), берем имя из статьи и делаем первую букву заглавной!
+                const rawDbName = post.author_name || "Аноним";
+                beautifulName = rawDbName.charAt(0).toUpperCase() + rawDbName.slice(1);
+            }
+
+            return {
+                ...post,
+                author_name: beautifulName, // Перезаписали поле на 100% рабочий красивый регистр на главной!
+                real_likes: allLikes.filter(l => l.post_id === post.id).length,
+                viewCount: allViews.filter(v => v.post_id === post.id).length,
+                commentCount: allComments.filter(c => c.post_id === post.id).length
+            };
+        });
 
         res.json(processedData);
 
