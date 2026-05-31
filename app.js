@@ -396,27 +396,28 @@ app.get('/api/article/:id', async (req, res) => {
             return res.status(404).json({ error: "Статья находится на проверке модератора!" });
         }
 
-         // 🔥 КВАНТОВЫЙ ШЛЮЗ СИНИОРА: Идем напрямую в ядро Supabase Auth по id создателя статьи!
-        // Вытаскиваем живые метаданные учетной записи автора ( display_name ) с сохранением больших букв!
+     // 🔥 КВАНТОВЫЙ ШЛЮЗ СИНИОРА: Стучимся в Authentication -> Users через мастер-клиент supabaseAdmin!
+        // Теперь запрос ПРОБЬЕТ любые фильтры безопасности Supabase Auth со стороны сервера!
         let beautifulAuthorName = "Аноним";
         try {
-            const { data: userData, error: userError } = await supabase.auth.admin.getUserById(artRes.data.user_id);
+            const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(artRes.data.user_id);
             if (userData && userData.user) {
-                // Считываем красивый кастомный регистр Yaa / Kapibara / MegaOgurec из метаданных!
+                // Считываем твой сочный, измененный красивый регистр букв Yaa / Kapibara!
                 beautifulAuthorName = userData.user.user_metadata?.display_name || userData.user.user_metadata?.name || userData.user.email.split('@')[0];
             }
         } catch (uErr) {
-            console.warn("Предупреждение: Не удалось стянуть метаданные автора, подменяем на старый ник.");
+            console.warn("Сбой чтения метаданных через мастер-ключ:", uErr.message);
             beautifulAuthorName = artRes.data.author_name || "Аноним";
         }
 
-        // 2. СБОРКА ИДЕАЛЬНОГО ОТВЕТА СЕРВЕРА С ПЕРЕЗАПИСЬЮ ИМЕНИ АВТОРА С БОЛЬШИХ БУКВ
+        // 2. СБОРКА ИДЕАЛЬНОГО ОТВЕТА СЕРВЕРА С ОБНОВЛЕННЫМ ИМЕНЕМ АВТОРА С БОЛЬШИХ БУКВ
         res.json({
             ...artRes.data,
-            author_name: beautifulAuthorName, // Перезаписали поле на кристально чистый регистр из метаданных!
+            author_name: beautifulAuthorName, // Выведет на фронт строго красивое живое имя!
             real_likes: likesRes.count || 0,
             view_count: viewsRes.count || 0
         });
+
     } catch (err) {
         res.status(404).json({ error: "Статья не найдена" });
     }
