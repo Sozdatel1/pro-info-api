@@ -233,6 +233,38 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
+// 🔥 СУВЕРЕННЫЙ СТРОГИЙ РОУТ ПРОВЕРКИ НИКНЕЙМА С УЧЕТОМ РЕГИСТРА БУКВ
+app.post('/api/check-username', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: "Username is required" });
+
+        // Отрезаем только случайные пробелы по краям, РЕГИСТР БУКВ ОСТАВЛЯЕМ ОРИГИНАЛЬНЫМ!
+        const cleanUsername = username.trim(); 
+
+        // 1. Вытягиваем список ВСЕХ пользователей из ядра Supabase Auth через мастер-клиент
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+        if (error) throw error;
+
+        // 2. СТРОГИЙ РЕГИСТРОЗАВИСИМЫЙ СКАНИНГ:
+        // Сверяем символ к символу! Теперь "kapibara" !== "Kapibara" !
+        const nameExists = users.some(u => {
+            const metaName = u.user_metadata?.display_name || u.user_metadata?.name || '';
+            return metaName === cleanUsername; // Точное совпадение с учетом больших букв!
+        });
+
+        if (nameExists) {
+            return res.json({ exists: true, message: `❌ Никнейм "${cleanUsername}" уже занят другим автором!` });
+        }
+
+        // Если точного совпадения нет — даем зеленый свет! (Kapibara будет свободен!)
+        res.json({ exists: false });
+
+    } catch (err) {
+        console.error("Ошибка проверки никнейма на сервере:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 app.post('/api/delete-user', async (req, res) => {
   const { userId } = req.body;
