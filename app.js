@@ -501,7 +501,7 @@ app.get('/api/comments/:postId', async (req, res) => {
             .select('*')
             .eq('post_id', postId)
             .eq('is_approved', true) // 🔥 Фильтр шрапнели: только одобренные!
-            .order('created_at', { ascending: true }); 
+            .order('created_at', { ascending: false }); 
 
         if (error) throw error;
         res.json(data || []);
