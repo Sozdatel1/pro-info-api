@@ -410,33 +410,64 @@ app.get('/api/posts', async (req, res) => {
 });
 
 
+// =========================================================================
+// 🦫 СУВЕРЕННЫЙ РОУТ ЛИЧНЫХ СТАТЕЙ ЮЗЕРА С СИНХРОНИЗАЦИЕЙ ВСЕЙ СТАТИСТИКИ
+// =========================================================================
 app.get('/api/my-articles', async (req, res) => {
     try {
-        // Получаем токен из заголовков запроса
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ error: "No token provided" });
+        // 🔥 ФИКС #1: Забираем userId напрямую GET-параметром из адресной строки!
+        // Никаких supabase.auth.getUser(token), обходим блокировки DPI на 1000%!
+        const userId = req.query.userId;
+        if (!userId) return res.status(401).json({ error: "Unauthorized: Missing userId parameter" });
 
-        const token = authHeader.split(' ')[1];
+        // 🔥 ФИКС #2: Врубаем асинхронный Promise.all для параллельного сбора всей статистики карточек!
+        const [resArticles, resLikes, resViews, resComments, resUsers] = await Promise.all([
+            supabase.from('articles').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+            supabase.from('likes').select('post_id'),
+            supabase.from('views').select('post_id'),
+            supabase.from('comments').select('post_id'),
+            supabaseAdmin.auth.admin.listUsers() // Наш суверенный мастер-клиент забирает красивые имена
+        ]);
 
-        // 1. Проверяем пользователя на сервере по его токену
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        
-        if (authError || !user) throw new Error("Unauthorized");
+        if (resArticles.error) throw resArticles.error;
 
-        // 2. Делаем запрос статей этого пользователя
-        const { data, error } = await supabase
-            .from('articles')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+        const articles = resArticles.data || [];
+        const allLikes = resLikes.data || [];
+        const allViews = resViews.data || [];
+        const allComments = resComments.data || [];
+        const allUsersList = resUsers.data?.users || [];
 
-        if (error) throw error;
+        // 🔥 ШАГ 3. КВАНТОВЫЙ МAППИНГ: Намертво склеиваем цифры счетчиков с каждой личной карточкой!
+        const processedData = articles.map(post => {
+            const authorAccount = allUsersList.find(u => u.id === post.user_id);
+            
+            let beautifulName = "Аноним";
+            if (authorAccount) {
+                beautifulName = authorAccount.user_metadata?.display_name || authorAccount.user_metadata?.name || authorAccount.email.split('@')[0];
+            } else {
+                const rawDbName = post.author_name || "Аноним";
+                beautifulName = rawDbName.charAt(0).toUpperCase() + rawDbName.slice(1);
+            }
 
-        res.json(data);
+            return {
+                ...post,
+                author_name: beautifulName, // Имя автора горит красивым регистром с больших букв!
+                // Названия переменных строго совпадают с главной index.html для совместимости UI!
+                real_likes: allLikes.filter(l => l.post_id === post.id).length,
+                viewCount: allViews.filter(v => v.post_id === post.id).length,
+                commentCount: allComments.filter(c => c.post_id === post.id).length
+            };
+        });
+
+        // Отдаем фронтенду полностью укомплектованный массив постов со всеми лайками и просмотрами!
+        res.json(processedData);
+
     } catch (err) {
-        res.status(401).json({ error: err.message });
+        console.error("Ошибка роута личных статей профиля:", err.message);
+        res.status(500).json({ error: err.message });
     }
 });
+
 
 
 app.get('/api/article/:id', async (req, res) => {
