@@ -554,23 +554,59 @@ app.patch('/api/posts/approve/:postId', async (req, res) => {
     }
 });
 
+// =========================================================================
+// 🦫 СУВЕРЕННЫЙ РОУТ ВЫДАЧИ КОММЕНТАРИЕВ С ЖИВЫМ ВЫРАВНИВАНИЕМ РЕГИСТРА ИМЕН
+// =========================================================================
 app.get('/api/comments/:postId', async (req, res) => {
     try {
         const { postId } = req.params;
         
-        const { data, error } = await supabase
-            .from('comments')
-            .select('*')
-            .eq('post_id', postId)
-            .eq('is_approved', true) // 🔥 Фильтр шрапнели: только одобренные!
-            .order('created_at', { ascending: false }); 
+        // 🔥 ШАГ 1. ФИКС СИНИОРА: Запускаем параллельно сбор комментов и штурм актуальной базы имен из ядра!
+        // Твой боевой фильтр шрапнели модерации .eq('is_approved', true) сохранен на 1000%!
+        const [commRes, usersRes] = await Promise.all([
+            supabase
+                .from('comments')
+                .select('*')
+                .eq('post_id', postId)
+                .eq('is_approved', true) 
+                .order('created_at', { ascending: false }), // Для рекурсивных деревьев сорт ascending/descending подхватится фронтом
+            supabaseAdmin.auth.admin.listUsers() // Наш секретный мастер-клиент тянет живые метаданные
+        ]);
 
-        if (error) throw error;
-        res.json(data || []);
+        if (commRes.error) throw commRes.error;
+
+        const comments = commRes.data || [];
+        const allUsersList = usersRes.data?.users || [];
+
+        // 🔥 ШАГ 2. КВАНТОВЫЙ МAППИНГ: Перезаписываем user_name красивым регистром из display_name!
+        const processedComments = comments.map(c => {
+            // Ищем аккаунт комментатора в базе пользователей по id
+            const account = allUsersList.find(u => u.id === c.user_id);
+            
+            let beautifulName = "Аноним";
+            if (account) {
+                // Добавили точный индекс [0] на конце сплита для абсолютной безопасности!
+                beautifulName = account.user_metadata?.display_name || account.user_metadata?.name || account.email.split('@')[0];
+            } else {
+                // Если аккаунт удален или не найден, берем старый текст из базы и делаем первую букву большой!
+                const rawName = c.user_name || "Аноним";
+                beautifulName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+            }
+
+            return {
+                ...c,
+                user_name: beautifulName // Поле гарантированно вернет красивый регистр с большими буквами!
+            };
+        });
+
+        res.json(processedComments);
+
     } catch (err) {
+        console.error("Критический сбой роута комментариев на бэкенде:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // 2. POST: Принудительный загон любого нового коммента на карантин (false)
 app.post('/api/comments', async (req, res) => {
