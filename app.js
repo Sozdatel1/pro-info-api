@@ -256,7 +256,9 @@ app.post('/api/check-username', async (req, res) => {
         const cleanUsername = username.trim(); 
 
         // 1. Вытягиваем список ВСЕХ пользователей из ядра Supabase Auth через мастер-клиент
-        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
+            perPage: 1000 // Тот самый фикс, который спасет от ограничения в 50 юзеров
+        });
         if (error) throw error;
 
         // 2. СТРОГИЙ РЕГИСТРОЗАВИСИМЫЙ СКАНИНГ:
