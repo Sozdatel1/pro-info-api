@@ -281,6 +281,43 @@ app.post('/api/check-username', async (req, res) => {
     }
 });
 
+
+app.post('/api/get-email-by-username', async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: "Username is required" });
+
+        const cleanUsername = username.trim();
+
+        // 1. Вытягиваем список пользователей (до 1000 человек)
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
+            perPage: 1000
+        });
+        if (error) throw error;
+
+        // 2. СТРОГИЙ РЕГИСТРОЗАВИСИМЫЙ ПОИСК:
+        // Сверяем строго символ к символу через === без использования .toLowerCase()
+        const targetUser = users.find(u => {
+            const metaName = u.user_metadata?.display_name || u.user_metadata?.name || '';
+            return metaName === cleanUsername; // "kapibara" !== "Kapibara"
+        });
+
+        // 3. Если регистр букв не совпал или пользователя нет
+        if (!targetUser) {
+            return res.status(404).json({ error: "Неверный никнейм (проверьте большие и маленькие буквы)" });
+        }
+
+        // Если всё совпало идеально — отдаем email на фронтенд для логина
+        res.json({ email: targetUser.email });
+
+    } catch (err) {
+        console.error("Ошибка поиска почты:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
+
 app.post('/api/delete-user', async (req, res) => {
   const { userId } = req.body;
 
