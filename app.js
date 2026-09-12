@@ -254,25 +254,43 @@ app.post('/api/check-username', async (req, res) => {
 
         // Отрезаем только случайные пробелы по краям, РЕГИСТР БУКВ ОСТАВЛЯЕМ ОРИГИНАЛЬНЫМ!
         const cleanUsername = username.trim(); 
+ 
+        let page = 1;
+        let hasMoreUsers = true;
+        let nameExists = false;
+        while (hasMoreUsers) {
+            const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
+                page: page,
+                perPage: 100 // Оптимальный размер пачки, чтобы не было ошибки 504
+            });
 
-        // 1. Вытягиваем список ВСЕХ пользователей из ядра Supabase Auth через мастер-клиент
-        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
-            perPage: 1000 // Тот самый фикс, который спасет от ограничения в 50 юзеров
-        });
-        if (error) throw error;
+            if (error) throw error;
 
-        // 2. СТРОГИЙ РЕГИСТРОЗАВИСИМЫЙ СКАНИНГ:
-        // Сверяем символ к символу! Теперь "kapibara" !== "Kapibara" !
-        const nameExists = users.some(u => {
-            const metaName = u.user_metadata?.display_name || u.user_metadata?.name || '';
-            return metaName === cleanUsername; // Точное совпадение с учетом больших букв!
-        });
+            // Если пользователей на этой странице больше нет — останавливаем цикл
+            if (!users || users.length === 0) {
+                hasMoreUsers = false;
+                break;
+            }
+
+            // Проверяем текущую пачку на совпадение регистра букв
+            nameExists = users.some(u => {
+                const metaName = u.user_metadata?.display_name || u.user_metadata?.name || '';
+                return metaName === cleanUsername; // "kapibara" !== "Kapibara"
+            });
+
+            // Если нашли совпадение — сразу прерываем все проверки и выходим
+            if (nameExists) {
+                break;
+            }
+
+            page++; // Переходим к следующей пачке
+        }
 
         if (nameExists) {
             return res.json({ exists: true, message: `❌ Никнейм "${cleanUsername}" уже занят другим автором!` });
         }
 
-        // Если точного совпадения нет — даем зеленый свет! (Kapibara будет свободен!)
+        // Если прошли абсолютно всех юзеров базы и совпадений нет
         res.json({ exists: false });
 
     } catch (err) {
@@ -289,25 +307,40 @@ app.post('/api/get-email-by-username', async (req, res) => {
 
         const cleanUsername = username.trim();
 
-        // 1. Вытягиваем список пользователей (до 1000 человек)
-        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
-            perPage: 1000
-        });
-        if (error) throw error;
+        let page = 1;
+        let hasMoreUsers = true;
+        let targetUser = null;
+        while (hasMoreUsers) {
+            const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
+                page: page,
+                perPage: 100
+            });
 
-        // 2. СТРОГИЙ РЕГИСТРОЗАВИСИМЫЙ ПОИСК:
-        // Сверяем строго символ к символу через === без использования .toLowerCase()
-        const targetUser = users.find(u => {
-            const metaName = u.user_metadata?.display_name || u.user_metadata?.name || '';
-            return metaName === cleanUsername; // "kapibara" !== "Kapibara"
-        });
+            if (error) throw error;
 
-        // 3. Если регистр букв не совпал или пользователя нет
+            if (!users || users.length === 0) {
+                hasMoreUsers = false;
+                break;
+            }
+
+            // Ищем строгое совпадение регистра в текущей пачке
+            const found = users.find(u => {
+                const metaName = u.user_metadata?.display_name || u.user_metadata?.name || '';
+                return metaName === cleanUsername;
+            });
+
+            if (found) {
+                targetUser = found;
+                break; // Нашли — останавливаем поиск
+            }
+
+            page++;
+        }
+
         if (!targetUser) {
             return res.status(404).json({ error: "Неверный никнейм (проверьте большие и маленькие буквы)" });
         }
 
-        // Если всё совпало идеально — отдаем email на фронтенд для логина
         res.json({ email: targetUser.email });
 
     } catch (err) {
