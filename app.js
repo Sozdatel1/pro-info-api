@@ -246,6 +246,37 @@ const supabaseAdmin = createClient(
     }
   }
 );
+
+app.post('/api/check-email', async (req, res) => {
+    const { email } = req.body;
+    
+    if (!email || !email.trim()) {
+        return res.status(400).json({ error: "Email обязателен для проверки" });
+    }
+
+    try {
+        // Запрашиваем у Supabase список пользователей (метод доступен только для admin роли)
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers();
+        
+        if (error) throw error;
+
+        // Проверяем, совпадает ли введенный email с кем-то из базы
+        const cleanEmail = email.trim().toLowerCase();
+        const emailExists = data.users.some(user => user.email && user.email.toLowerCase() === cleanEmail);
+
+        if (emailExists) {
+            return res.json({ exists: true, message: "Пользователь с такой почтой уже зарегистрирован!" });
+        }
+
+        // Если совпадений нет — всё хорошо
+        return res.json({ exists: false });
+
+    } catch (err) {
+        console.error("Ошибка сервера при проверке email:", err.message);
+        return res.status(500).json({ error: "Ошибка сервера при проверке email" });
+    }
+});
+
 // 🔥 СУВЕРЕННЫЙ СТРОГИЙ РОУТ ПРОВЕРКИ НИКНЕЙМА С УЧЕТОМ РЕГИСТРА БУКВ
 app.post('/api/check-username', async (req, res) => {
     try {
