@@ -645,7 +645,7 @@ app.get('/api/admin/unapproved-posts', async (req, res) => {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) throw new Error('Ошибка авторизации');
 
-        const username = user.email.split('@')[0];
+        const username = user.user_metadata?.display_name || user.user_metadata?.name;
 
         // ЖЕСТКИЙ ФАЙРВОЛ: Отбиваем атаку любого, кто косит под Капибару!
         if (username !== 'kapibara') {
