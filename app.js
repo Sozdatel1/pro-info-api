@@ -678,7 +678,7 @@ app.patch('/api/posts/approve/:postId', async (req, res) => {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) throw new Error('Ошибка авторизации');
 
-        const username = user.email.split('@')[0];
+        const username = user.user_metadata?.display_name || user.user_metadata?.name;
 
         if (username !== 'kapibara') {
             return res.status(403).json({ error: 'Вы не админ kapibara! 🛑' });
@@ -793,7 +793,7 @@ app.patch('/api/comments/approve/:commentId', async (req, res) => {
         if (authError || !user) throw new Error('Ошибка авторизации');
 
         // Вырезаем юзернейм из почты в точности как в твоем POST-роуте
-        const username = user.email.split('@')[0];
+        const username = user.user_metadata?.display_name || user.user_metadata?.name;
 
         // 🦫 ЖЕСТКИЙ КИБЕР-ЩИТ: Проверяем, что вошел именно kapibara!
         if (username !== 'kapibara') {
@@ -823,7 +823,7 @@ app.get('/api/admin/unapproved', async (req, res) => {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) throw new Error('Ошибка авторизации');
 
-        const username = user.email.split('@')[0];
+        const username = user.user_metadata?.display_name || user.user_metadata?.name;
 
         // 🦫 Бьем по рукам любого левого чела, который ломится в карантин
         if (username !== 'kapibara') {
