@@ -944,7 +944,7 @@ app.post('/api/publish', async (req, res) => {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) throw new Error("Сессия истекла");
 
-        const generatedName = user.email.split('@')[0];
+        const generatedName = user.user_metadata?.display_name || user.user_metadata?.name;
         const postData = {
             title,
             text,
