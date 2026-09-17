@@ -762,8 +762,7 @@ app.post('/api/comments', async (req, res) => {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) throw new Error('Ошибка авторизации');
 
-        const username = user.email.split('@')[0];
-
+        const username = user.user_metadata?.display_name || user.user_metadata?.name;
         const { error: insertError } = await supabase.from('comments').insert([{
             post_id: postId,
             user_id: user.id,
